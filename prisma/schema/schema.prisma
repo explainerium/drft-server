@@ -1,0 +1,12 @@
+// Datasource + generator only. Models live in sibling files, one per domain
+// (user.prisma, catalog.prisma, order.prisma, ...) — see PLAN.md §6.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// The connection string lives in prisma.config.ts for Migrate and reaches the
+// client at runtime through @prisma/adapter-pg (src/shared/prisma.ts).
+datasource db {
+  provider = "postgresql"
+}
