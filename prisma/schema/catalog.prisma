@@ -1,6 +1,6 @@
 // Catalog: categories, products, variants and attributes.
 //
-// English only for now (PLAN.md D9): names and slugs live on the base models.
+// English only for now: names and slugs live on the base models.
 // If more languages are confirmed, they move to *Translation models.
 //
 // Money: EUR, stored as Decimal and handled with decimal.js — never JS floats.
@@ -54,6 +54,8 @@ model Product {
   shortDescription String?
   // Sanitized HTML from the admin rich-text editor.
   description      String?
+  // Editorial PDP blocks (highlight, story, features, in-the-box); shape in domain/catalog/productContent.ts.
+  content          Json?
 
   featuredAssetId String?
   featuredAsset   Asset?  @relation("ProductFeatured", fields: [featuredAssetId], references: [id], onDelete: SetNull)
@@ -118,6 +120,7 @@ model ProductVariant {
   sortOrder Int     @default(0)
 
   attributeValues VariantAttributeValue[]
+  cartItems       CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

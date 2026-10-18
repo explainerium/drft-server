@@ -1,5 +1,5 @@
 // Datasource + generator only. Models live in sibling files, one per domain
-// (user.prisma, catalog.prisma, order.prisma, ...) — see PLAN.md §6.
+// (user.prisma, catalog.prisma, cart.prisma, ...).
 
 generator client {
   provider = "prisma-client-js"

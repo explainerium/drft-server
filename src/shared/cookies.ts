@@ -15,6 +15,8 @@ export const COOKIE = {
 	// expires after minutes, so this is how it knows a session exists. It is a
 	// UX hint only — every API route still verifies the access token.
 	SESSION: "drft_session",
+	// Guest cart token. Dropped once the cart is merged into a signed-in customer's.
+	CART: "drft_cart",
 } as const
 
 // Refresh token is only ever needed by the auth endpoints, so it is not sent
@@ -45,4 +47,14 @@ export const clearAuthCookies = (res: Response): void => {
 	res.clearCookie(COOKIE.ACCESS, base("/"))
 	res.clearCookie(COOKIE.REFRESH, base(REFRESH_PATH))
 	res.clearCookie(COOKIE.SESSION, base("/"))
+}
+
+const CART_MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000
+
+export const setCartCookie = (res: Response, token: string): void => {
+	res.cookie(COOKIE.CART, token, base("/", CART_MAX_AGE_MS))
+}
+
+export const clearCartCookie = (res: Response): void => {
+	res.clearCookie(COOKIE.CART, base("/"))
 }

@@ -43,6 +43,24 @@ const socialSchema = z.object({
 	tiktok: optionalUrl,
 })
 
+/** "150.00": a non-negative EUR amount with up to two decimals. */
+const amount = z
+	.string()
+	.trim()
+	.regex(/^\d{1,9}(\.\d{1,2})?$/, "Enter an amount like 150 or 150.00")
+	.transform((v) => Number(v).toFixed(2))
+
+const shippingSchema = z.object({
+	// Orders at or above this subtotal ship free; null turns the offer off.
+	freeShippingThreshold: amount.nullable(),
+})
+
+const taxSchema = z.object({
+	// Prices include VAT. Before the customer's country is known, the cart
+	// estimates the included VAT at this rate (the store's home country).
+	defaultVatRate: z.number().min(0).max(50),
+})
+
 interface SettingGroup<S extends z.ZodObject> {
 	description: string
 	schema: S
@@ -69,6 +87,18 @@ export const SETTING_GROUPS = {
 		description: "Social media profile links",
 		schema: socialSchema,
 		defaults: {},
+		isPublic: true,
+	}),
+	shipping: group({
+		description: "Free shipping threshold",
+		schema: shippingSchema,
+		defaults: { freeShippingThreshold: "150.00" },
+		isPublic: true,
+	}),
+	tax: group({
+		description: "VAT rate used for estimates before checkout",
+		schema: taxSchema,
+		defaults: { defaultVatRate: 21 },
 		isPublic: true,
 	}),
 }

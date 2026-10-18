@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed:admin": "tsx prisma/seed/admin.seed.ts",
-    "seed:catalog": "tsx prisma/seed/catalog.seed.ts"
+    "seed:catalog": "tsx prisma/seed/catalog.seed.ts",
+    "seed:media": "tsx prisma/seed/media.seed.ts"
   },
   "engines": {
     "node": ">=24"

@@ -1,5 +1,6 @@
-import type { Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { descendantIds } from "../../../domain/catalog/categoryTree"
+import { readProductContent } from "../../../domain/catalog/productContent"
 import { parseAttributeFilters } from "../../../domain/catalog/productFilters"
 import {
 	normalizeRelatedIds,
@@ -46,7 +47,18 @@ const cardSelect = {
 	images: { orderBy: { sortOrder: "asc" }, take: 1, select: { alt: true, asset: { select: assetSelect } } },
 	variants: {
 		where: { isActive: true },
-		select: { price: true, compareAtPrice: true, manageStock: true, stock: true, isDefault: true },
+		select: {
+			price: true,
+			compareAtPrice: true,
+			manageStock: true,
+			stock: true,
+			isDefault: true,
+			// Colour swatches on the card.
+			attributeValues: {
+				where: { attributeValue: { hexColor: { not: null } } },
+				select: { attributeValue: { select: { id: true, label: true, hexColor: true, sortOrder: true } } },
+			},
+		},
 	},
 	categories: visibleCategories,
 } satisfies Prisma.ProductSelect
@@ -65,6 +77,12 @@ const toCard = (row: CardRow) => {
 		}))
 	)
 	const fallback = row.images[0]
+	const swatches = new Map<string, { id: string; label: string; hexColor: string; sortOrder: number }>()
+	for (const v of row.variants) {
+		for (const { attributeValue: a } of v.attributeValues) {
+			if (a.hexColor) swatches.set(a.id, { ...a, hexColor: a.hexColor })
+		}
+	}
 
 	return {
 		id: row.id,
@@ -82,6 +100,9 @@ const toCard = (row: CardRow) => {
 		price: { min: summary.minPrice, max: summary.maxPrice },
 		compareAtPrice: summary.compareAtPrice,
 		inStock: summary.inStock,
+		swatches: [...swatches.values()]
+			.sort((a, b) => a.sortOrder - b.sortOrder)
+			.map(({ label, hexColor }) => ({ label, hexColor })),
 		categories: row.categories.map((c) => c.category),
 	}
 }
@@ -173,6 +194,7 @@ const detailSelect = {
 	typeLabel: true,
 	shortDescription: true,
 	description: true,
+	content: true,
 	isFeatured: true,
 	metaTitle: true,
 	metaDescription: true,
@@ -336,6 +358,17 @@ const list = async (query: ProductListQuery) => {
 	return { data: rows.map(toCard), meta: toMeta(pagination, total) }
 }
 
+/** Stored content with the story asset id swapped for the image itself. */
+const publicContent = async (json: unknown) => {
+	const content = readProductContent(json)
+	if (!content.story) return content
+	const { imageAssetId, ...story } = content.story
+	const asset = imageAssetId
+		? await prisma.asset.findUnique({ where: { id: imageAssetId }, select: assetSelect })
+		: null
+	return { ...content, story: { ...story, image: toImageOrNull(asset) } }
+}
+
 /** The full product page. Drafts and archived products are a 404. */
 const getBySlug = async (slug: string) => {
 	const row = await prisma.product.findFirst({ where: { slug, status: PUBLISHED }, select: detailSelect })
@@ -360,6 +393,7 @@ const getBySlug = async (slug: string) => {
 		typeLabel: row.typeLabel,
 		shortDescription: row.shortDescription,
 		description: row.description,
+		content: await publicContent(row.content),
 		isFeatured: row.isFeatured,
 		metaTitle: row.metaTitle,
 		metaDescription: row.metaDescription,
@@ -681,6 +715,12 @@ const assetIdsOf = (payload: Partial<ProductInput>, variants: PreparedVariant[] 
 
 const TX_OPTIONS = { timeout: 15_000 }
 
+/** Scalar product columns. JSON `null` must be spelled Prisma.DbNull to clear the column. */
+const productData = <T extends { content?: ProductInput["content"] }>({ content, ...rest }: T) => ({
+	...rest,
+	...(content === undefined ? {} : { content: content === null ? Prisma.DbNull : content }),
+})
+
 // TODO(M5): sanitize rich text (description) before it is stored.
 const create = async (payload: ProductInput) => {
 	const { categoryIds, images, specs, relatedIds: rawRelated, variants: rawVariants, slug: rawSlug, ...base } = payload
@@ -693,7 +733,7 @@ const create = async (payload: ProductInput) => {
 
 	const product = await prisma.$transaction(async (tx) => {
 		const created = await tx.product.create({
-			data: { ...base, slug, status, publishedAt: resolvePublishedAt(status, null) },
+			data: { ...productData(base), slug, status, publishedAt: resolvePublishedAt(status, null) },
 		})
 		await writeLists(tx, created.id, { categoryIds, images, specs, relatedIds })
 		for (const [index, v] of variants.entries()) {
@@ -734,7 +774,7 @@ const update = async (id: string, payload: ProductUpdateInput) => {
 	const publishedAt = resolvePublishedAt(payload.status ?? existing.status, existing.publishedAt)
 
 	await prisma.$transaction(async (tx) => {
-		await tx.product.update({ where: { id }, data: { ...base, ...(slug ? { slug } : {}), publishedAt } })
+		await tx.product.update({ where: { id }, data: { ...productData(base), ...(slug ? { slug } : {}), publishedAt } })
 		await writeLists(tx, id, { categoryIds, images, specs, relatedIds })
 		if (variants) await syncVariants(tx, id, existing.variants, variants)
 	}, TX_OPTIONS)

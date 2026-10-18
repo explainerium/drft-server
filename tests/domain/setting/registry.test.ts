@@ -14,7 +14,7 @@ describe("setting registry", () => {
 		expect(isSettingGroup("nope")).toBe(false)
 		expect(isSettingGroup("__proto__")).toBe(false)
 		expect(isSettingGroup("constructor")).toBe(false)
-		expect(PUBLIC_SETTING_GROUPS).toEqual(["store", "seo", "social"])
+		expect(PUBLIC_SETTING_GROUPS).toEqual(["store", "seo", "social", "shipping", "tax"])
 	})
 
 	it("every default satisfies its own schema", () => {
@@ -69,5 +69,12 @@ describe("applyGroupUpdate", () => {
 		const current = { instagram: "https://instagram.com/drft", youtube: "https://youtube.com/@drft" }
 		expect(applyGroupUpdate("social", current, { instagram: "", youtube: null })).toEqual({})
 		expect(() => applyGroupUpdate("social", {}, { tiktok: "javascript:alert(1)" })).toThrow(ZodError)
+	})
+
+	it("normalises the free shipping threshold and allows turning it off", () => {
+		const current = SETTING_GROUPS.shipping.defaults
+		expect(applyGroupUpdate("shipping", current, { freeShippingThreshold: "99.5" })).toEqual({ freeShippingThreshold: "99.50" })
+		expect(applyGroupUpdate("shipping", current, { freeShippingThreshold: null })).toEqual({ freeShippingThreshold: null })
+		expect(() => applyGroupUpdate("shipping", current, { freeShippingThreshold: "-5" })).toThrow(ZodError)
 	})
 })

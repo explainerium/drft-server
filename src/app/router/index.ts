@@ -2,6 +2,7 @@ import { Router } from "express"
 import { AccountRoutes } from "../modules/account/account.routes"
 import { AttributeRoutes } from "../modules/attribute/attribute.routes"
 import { AuthRoutes } from "../modules/auth/auth.routes"
+import { CartRoutes } from "../modules/cart/cart.routes"
 import { CategoryRoutes } from "../modules/category/category.routes"
 import { MediaRoutes } from "../modules/media/media.routes"
 import { ProductRoutes } from "../modules/product/product.routes"
@@ -18,6 +19,7 @@ const moduleRoutes: { path: string; route: Router }[] = [
 	{ path: "/categories", route: CategoryRoutes },
 	{ path: "/attributes", route: AttributeRoutes },
 	{ path: "/products", route: ProductRoutes },
+	{ path: "/cart", route: CartRoutes },
 	{ path: "/media", route: MediaRoutes },
 	{ path: "/settings", route: SettingRoutes },
 ]

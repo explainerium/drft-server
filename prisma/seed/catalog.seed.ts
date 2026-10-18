@@ -1,4 +1,6 @@
 import "dotenv/config"
+import { Prisma } from "@prisma/client"
+import type { ProductContent } from "../../src/domain/catalog/productContent"
 import { prisma } from "../../src/shared/prisma"
 
 /**
@@ -26,7 +28,16 @@ const attributes = [
 	{
 		code: "kite-size",
 		name: "Kite Size",
-		values: ["7m", "9m", "10m", "12m"].map((label, i) => ({ code: label.toLowerCase(), label, sortOrder: i })),
+		values: ["7m", "9m", "10m", "12m", "14m"].map((size, i) => ({ code: size, label: `${size}²`, sortOrder: i })),
+	},
+	{
+		code: "colorway",
+		name: "Colorway",
+		values: [
+			{ code: "chalk-white", label: "Chalk White / Glacier Slate", hexColor: "#dfe3e8", sortOrder: 0 },
+			{ code: "storm-graphite", label: "Storm Graphite", hexColor: "#5b5b5d", sortOrder: 1 },
+			{ code: "lagoon-teal", label: "Lagoon Teal", hexColor: "#4fc3bd", sortOrder: 2 },
+		],
 	},
 	{
 		code: "bar-size",
@@ -49,8 +60,10 @@ interface SeedProduct {
 	badge: string
 	typeLabel: string
 	shortDescription: string
+	description?: string
 	categories: string[]
 	isFeatured?: boolean
+	content?: ProductContent
 	variants: SeedVariant[]
 	specs?: { group?: string; label: string; value: string }[]
 }
@@ -62,20 +75,90 @@ const products: SeedProduct[] = [
 		badge: "Freeride",
 		typeLabel: "Freeride kite",
 		shortDescription: "Intuitive sheet-and-go power delivery with light, dynamic bar feedback in all winds.",
+		description:
+			"<p>Intuitive sheet-and-go power delivery with a lightweight three-strut frame and dynamic bar feedback across all wind gradients. Built for riders who demand expansive wind ranges and effortless aerodynamic relaunch.</p>",
 		categories: ["kites"],
 		isFeatured: true,
-		variants: [
-			{ sku: "AERO3-07", price: "1480.00", stock: 6, values: ["kite-size:7m"] },
-			{ sku: "AERO3-09", price: "1540.00", stock: 10, values: ["kite-size:9m"] },
-			{ sku: "AERO3-10", price: "1580.00", stock: 8, values: ["kite-size:10m"] },
-			{ sku: "AERO3-12", price: "1640.00", stock: 4, values: ["kite-size:12m"] },
-		],
+		// Every size in every colorway. The first one (9m², Chalk White) is the default, as in the design.
+		variants: (["9m", "7m", "10m", "12m", "14m"] as const).flatMap((size) =>
+			(["chalk-white", "storm-graphite", "lagoon-teal"] as const).map((color) => ({
+				sku: `DRFT-KTE-A3-${size.toUpperCase()}-${color.slice(0, 2).toUpperCase()}`,
+				price: { "7m": "1420.00", "9m": "1480.00", "10m": "1540.00", "12m": "1600.00", "14m": "1660.00" }[size],
+				// One sold-out combination, so the PDP's out-of-stock state has data.
+				stock: size === "14m" && color === "lagoon-teal" ? 0 : 4,
+				values: [`kite-size:${size}`, `colorway:${color}`],
+			}))
+		),
 		specs: [
-			{ group: "Construction", label: "Canopy", value: "Ripstop polyester, 4-panel" },
-			{ group: "Construction", label: "Struts", value: "3 struts" },
-			{ group: "Performance", label: "Wind range", value: "12–30 kn (9m)" },
-			{ group: "Performance", label: "Discipline", value: "Freeride, Big Air" },
+			{ label: "Wind Range (9m² Standard)", value: "16 – 28 Knots (8 – 14 m/s)" },
+			{ label: "Airframe Construction", value: "3-Strut Inflatable Geometric Skeleton" },
+			{ label: "Aspect Ratio", value: "Moderate-High (4.8)" },
+			{ label: "Canopy Material", value: "Teijin TechnoForce Quad-Tex (Japan)" },
+			{ label: "Inflation Valve System", value: "Rapid High-Flow Max-Valve (9mm Single-Point)" },
+			{ label: "Bridle Configuration", value: "Pulleyless 4-Line Direct Low-Stretch Dyneema" },
+			{ label: "Recommended Control System", value: "DRFT Sentry Pro 52cm (22m + 2m Extensions)" },
+			{ label: "Dry Flying Weight", value: "2.85 kg (9m Canopy only)" },
 		],
+		content: {
+			profile: "High-aspect profile",
+			highlight: {
+				title: "Precision-Engineered Freeflight",
+				body: "Constructed with custom Teijin TechnoForce fibers and laser-aligned three-strut frame geometry for instantaneous steering feedback and progressive lift.",
+			},
+			story: {
+				eyebrow: "Design intent & rider perspective",
+				title: "Engineered for pure freeride flight and instant bar feel.",
+				paragraphs: [
+					"Developed across the unpredictable tidal bays of the North Sea and breezy Tarifa straits, the Aero V3 was conceived to bridge the gap between high-altitude float and effortless everyday handling. Rather than forcing riders into hyper-technical trim management, the third-generation canopy responds instinctively to single-hand bar inputs.",
+					"The swept wingtips yield immediate water relaunch, while the stiffened transverse profile eliminates canopy flutter at upper wind thresholds. Whether launching lofty, floaty jumps or carving quiet swell on an offshore evening, the feedback through your harness remains predictable, clean, and silent.",
+				],
+				stats: [
+					{ value: "4.8", label: "Aspect Ratio for Hangtime" },
+					{ value: "-18%", label: "Bar Pressure Fatigue" },
+					{ value: "< 3s", label: "Instant Water Relaunch" },
+				],
+				quote: {
+					label: "Tested in Nazaré & Cold Hawaii",
+					text: "The most balanced sheet-in response we have ever calibrated.",
+					author: "DRFT Atelier Test Team, 2025",
+				},
+			},
+			features: {
+				eyebrow: "Material science & aerodynamics",
+				title: "Engineered without compromise.",
+				intro:
+					"Every seam, seam reinforcement, and bridling juncture is assembled to withstand high UV exposure and aggressive saltwater shear.",
+				items: [
+					{
+						label: "01 / Frame Architecture",
+						title: "Tri-Strut Airframe",
+						body: "Optimized weight distribution offering uncompromised stability in turbulent gust conditions. Reduced skeleton drag allows the canopy to slice cleanly upwind without back-stalling.",
+						footnote: "High-Pressure Dacron 175g",
+						footnoteValue: "9.5 PSI Max",
+					},
+					{
+						label: "02 / Dynamic Rigging",
+						title: "Reactive Bridle Geometry",
+						body: "Pulleyless, direct-feeling bridle system engineered for instant power cutoff and zero lag. Pre-stretched Dyneema lines guarantee the kite retains factory calibration season after season.",
+						footnote: "Zero Pulleys / Low Drag",
+						footnoteValue: "Cousin Dyneema Line",
+					},
+					{
+						label: "03 / Surface Integrity",
+						title: "Teijin Quad-Tex Canopy",
+						body: "High-tenacity Japanese woven ripstop ensuring minimal diagonal stretch over seasons of intense saltwater use. Delivers crisp bar impulses and exceptional UV resistance.",
+						footnote: "4x4 Matrix Ripstop",
+						footnoteValue: "Made in Japan",
+					},
+				],
+			},
+			inTheBox: [
+				"Aero V3 High-Performance Kite Canopy",
+				"Ergonomic Compression Carry Backpack with board straps",
+				"Emergency Atelier Repair Kit (Bladder patches, Dacron tape)",
+				"Quick-Start Tuning & Safety Manual + Bladder pump adapter",
+			],
+		},
 	},
 	{
 		slug: "pocket-carbon-foil-board-110",
@@ -223,7 +306,7 @@ const main = async () => {
 			const row = await prisma.attributeValue.upsert({
 				where: { attributeId_code: { attributeId: attr.id, code: v.code } },
 				create: { attributeId: attr.id, ...v },
-				update: { label: v.label, sortOrder: v.sortOrder },
+				update: { label: v.label, sortOrder: v.sortOrder, hexColor: "hexColor" in v ? v.hexColor : null },
 			})
 			valueId.set(`${a.code}:${v.code}`, row.id)
 		}
@@ -236,6 +319,8 @@ const main = async () => {
 				badge: p.badge,
 				typeLabel: p.typeLabel,
 				shortDescription: p.shortDescription,
+				description: p.description ?? null,
+				content: p.content ?? Prisma.DbNull,
 				status: "PUBLISHED" as const,
 				publishedAt: new Date(),
 				isFeatured: !!p.isFeatured,

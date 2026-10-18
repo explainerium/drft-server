@@ -33,6 +33,7 @@ model User {
 
   addresses               Address[]
   refreshTokens           RefreshToken[]
+  cart                    Cart?
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   assetsUploaded          Asset[]                  @relation("AssetUploader")

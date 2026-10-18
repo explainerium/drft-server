@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { productContentSchema } from "../../../domain/catalog/productContent"
 import { MONEY_PATTERN } from "../../../domain/catalog/variantRules"
 import { paginationQuery } from "../../../shared/pagination"
 
@@ -72,6 +73,7 @@ const product = z.object({
 	shortDescription: z.string().trim().max(1_000).nullish(),
 	// TODO(M5): sanitize rich text
 	description: z.string().max(100_000).nullish(),
+	content: productContentSchema.nullish(),
 	featuredAssetId: z.uuid().nullish(),
 	isFeatured: z.boolean().optional(),
 	sortOrder: sortOrder.optional(),
