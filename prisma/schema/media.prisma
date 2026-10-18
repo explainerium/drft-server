@@ -1,0 +1,52 @@
+// Uploaded files. The bytes live in storage (local disk in dev, Cloudflare R2
+// in production); this table holds the key and metadata.
+
+model MediaFolder {
+  id       String        @id @default(uuid())
+  parentId String?
+  parent   MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children MediaFolder[] @relation("FolderTree")
+
+  name      String
+  sortOrder Int    @default(0)
+
+  assets Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@map("media_folders")
+}
+
+model Asset {
+  id         String @id @default(uuid())
+  storageKey String @unique
+
+  mimeType     String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+  originalName String
+  alt          String?
+  // Resized/WebP variants: { "<name>": { key, width, height } }.
+  derivatives  Json?
+
+  folderId String?
+  folder   MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  uploadedById String?
+  uploadedBy   User?   @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  productImages    ProductImage[]
+  featuredFor      Product[]        @relation("ProductFeatured")
+  categoryImageFor Category[]       @relation("CategoryImage")
+  variantImageFor  ProductVariant[] @relation("VariantImage")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folderId])
+  @@index([uploadedById])
+  @@map("assets")
+}

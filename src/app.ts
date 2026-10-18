@@ -6,6 +6,7 @@ import pinoHttp from "pino-http"
 import { env } from "./config"
 import globalErrorHandler from "./app/middlewares/globalErrorHandler"
 import notFound from "./app/middlewares/notFound"
+import { serveLocalMedia } from "./app/modules/media/media.serve"
 import router from "./app/router"
 import httpStatus from "./shared/httpStatus"
 import { logger } from "./shared/logger"
@@ -58,6 +59,10 @@ app.get("/health", (_req: Request, res: Response) => {
 		},
 	})
 })
+
+// Locally stored media (STORAGE_DRIVER=local). With R2, files are served by
+// Cloudflare and this passes through to notFound.
+app.use("/media", serveLocalMedia)
 
 app.use("/api/v1", router)
 

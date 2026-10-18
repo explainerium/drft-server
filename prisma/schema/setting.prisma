@@ -1,0 +1,11 @@
+// Store-wide settings as key/value groups (store info, SEO defaults, ...).
+// isPublic rows are readable by the storefront without auth.
+
+model Setting {
+  key       String   @id
+  value     Json
+  isPublic  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

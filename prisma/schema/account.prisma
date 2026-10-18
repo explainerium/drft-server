@@ -1,0 +1,29 @@
+// A customer's address book. Orders copy the address they used (snapshot), so
+// editing or deleting an address never rewrites order history.
+
+model Address {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName   String
+  lastName    String
+  company     String?
+  street1     String
+  street2     String?
+  postcode    String
+  city        String
+  region      String?
+  // ISO 3166-1 alpha-2, e.g. "NL".
+  countryCode String  @db.Char(2)
+  phone       String?
+
+  isDefaultShipping Boolean @default(false)
+  isDefaultBilling  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("addresses")
+}
