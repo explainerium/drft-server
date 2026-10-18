@@ -1,21 +1,17 @@
 import type { Prisma } from "@prisma/client"
-import { ancestorsOf, buildTree, findInTree, wouldCreateCycle } from "../../../domain/catalog/categoryTree"
+import {
+	ancestorsOf,
+	buildTree,
+	countProductsPerCategory,
+	findInTree,
+	wouldCreateCycle,
+} from "../../../domain/catalog/categoryTree"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
 import { slugify, uniqueSlug } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
+import { assetSelect, toImageOrNull } from "../media/media.view"
 import type { CategoryInput } from "./category.validation"
-
-/** The asset fields every catalog response carries. Shared with the product module. */
-export const assetSelect = {
-	id: true,
-	storageKey: true,
-	mimeType: true,
-	width: true,
-	height: true,
-	alt: true,
-	derivatives: true,
-} satisfies Prisma.AssetSelect
 
 const publicSelect = {
 	id: true,
@@ -34,8 +30,22 @@ const adminInclude = {
 	_count: { select: { products: true, children: true } },
 } satisfies Prisma.CategoryInclude
 
-const loadVisible = () =>
-	prisma.category.findMany({ where: { isHidden: false }, select: publicSelect, orderBy: { sortOrder: "asc" } })
+/**
+ * Visible categories with their image as URLs and a `productCount`: published
+ * products with at least one active variant (what the shop listing shows),
+ * counted across each category's subtree.
+ */
+const loadVisible = async () => {
+	const [rows, links] = await Promise.all([
+		prisma.category.findMany({ where: { isHidden: false }, select: publicSelect, orderBy: { sortOrder: "asc" } }),
+		prisma.productCategory.findMany({
+			where: { product: { status: "PUBLISHED", variants: { some: { isActive: true } } } },
+			select: { productId: true, categoryId: true },
+		}),
+	])
+	const counts = countProductsPerCategory(rows, links)
+	return rows.map(({ image, ...row }) => ({ ...row, image: toImageOrNull(image), productCount: counts.get(row.id) ?? 0 }))
+}
 
 // ─── Storefront ──────────────────────────────────────────────────────────────
 

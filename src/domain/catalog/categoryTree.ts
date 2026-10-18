@@ -120,3 +120,31 @@ export const findInTree = <T>(tree: TreeNode<T>[], match: (node: TreeNode<T>) =>
 	}
 	return undefined
 }
+
+/**
+ * Distinct products per category, each category counting its whole subtree,
+ * so "Boards" includes what sits in "Twintips". A product in two categories of
+ * the same branch is counted once.
+ */
+export const countProductsPerCategory = (
+	nodes: Iterable<CategoryNode>,
+	links: Iterable<{ productId: string; categoryId: string }>
+): Map<string, number> => {
+	const list = [...nodes]
+	const productsIn = new Map<string, Set<string>>()
+	for (const { productId, categoryId } of links) {
+		const set = productsIn.get(categoryId) ?? new Set<string>()
+		set.add(productId)
+		productsIn.set(categoryId, set)
+	}
+
+	const counts = new Map<string, number>()
+	for (const node of list) {
+		const products = new Set<string>()
+		for (const id of descendantIds(node.id, list)) {
+			for (const productId of productsIn.get(id) ?? []) products.add(productId)
+		}
+		counts.set(node.id, products.size)
+	}
+	return counts
+}

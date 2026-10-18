@@ -66,6 +66,9 @@ const product = z.object({
 	// Derived from the name when left out.
 	slug: z.string().trim().min(1).max(120).optional(),
 	status: status.optional(),
+	// Short label on the card image ("Freeride") and the line above the name ("Freeride kite").
+	badge: z.string().trim().max(40).nullish(),
+	typeLabel: z.string().trim().max(60).nullish(),
 	shortDescription: z.string().trim().max(1_000).nullish(),
 	// TODO(M5): sanitize rich text
 	description: z.string().max(100_000).nullish(),
@@ -113,7 +116,7 @@ const listSchema = z.object({
 		.object({
 			page: paginationQuery.page,
 			limit: paginationQuery.limit,
-			sort: z.enum(["newest", "price_asc", "price_desc", "name"]).default("newest"),
+			sort: z.enum(["featured", "newest", "price_asc", "price_desc", "name"]).default("featured"),
 			search: z.string().trim().min(1).max(100).optional(),
 			category: z.string().trim().min(1).max(160).optional(),
 			featured: flag.optional(),

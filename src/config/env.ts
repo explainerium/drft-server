@@ -13,13 +13,13 @@ const bool = z.enum(["true", "false"]).transform((v) => v === "true")
  */
 const schema = z.object({
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-	PORT: z.coerce.number().int().positive().default(5000),
+	PORT: z.coerce.number().int().positive().default(5005),
 	LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
 	DATABASE_URL: z.string().min(1),
 	DATABASE_POOL_SIZE: z.coerce.number().int().positive().optional(),
 
-	PUBLIC_BASE_URL: z.url().default("http://localhost:3000"),
+	PUBLIC_BASE_URL: z.url().default("http://localhost:3005"),
 	CORS_ORIGINS: z.string().default(""),
 
 	// Auth. The access token is a short-lived JWT; the refresh token is an opaque

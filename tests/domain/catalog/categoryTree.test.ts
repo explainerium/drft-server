@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
 	ancestorsOf,
 	buildTree,
+	countProductsPerCategory,
 	descendantIds,
 	findInTree,
 	wouldCreateCycle,
@@ -82,5 +83,28 @@ describe("buildTree", () => {
 
 	it("finds nodes at any depth", () => {
 		expect(findInTree(buildTree(nodes), (n) => n.id === "race")?.name).toBe("Race")
+	})
+})
+
+describe("countProductsPerCategory", () => {
+	const links = [
+		{ productId: "p1", categoryId: "kites" },
+		{ productId: "p1", categoryId: "race" },
+		{ productId: "p2", categoryId: "race" },
+		{ productId: "p3", categoryId: "lei" },
+	]
+	const counts = countProductsPerCategory(nodes, links)
+
+	it("counts a category's whole subtree", () => {
+		expect(counts.get("foil")).toBe(2)
+		expect(counts.get("race")).toBe(2)
+	})
+
+	it("counts a product once even when linked twice in the same branch", () => {
+		expect(counts.get("kites")).toBe(3)
+	})
+
+	it("gives empty categories a zero", () => {
+		expect(counts.get("boards")).toBe(0)
 	})
 })

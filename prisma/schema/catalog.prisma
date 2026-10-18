@@ -47,6 +47,10 @@ model Product {
   slug   String        @unique
   status ProductStatus @default(DRAFT)
 
+  // Card label on the image ("Freeride") and the line above the name ("Freeride kite").
+  badge     String?
+  typeLabel String?
+
   shortDescription String?
   // Sanitized HTML from the admin rich-text editor.
   description      String?

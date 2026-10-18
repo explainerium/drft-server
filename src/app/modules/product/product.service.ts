@@ -14,7 +14,7 @@ import { toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
 import { slugify, uniqueSlug } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
-import { assetSelect } from "../category/category.service"
+import { assetSelect, toImage, toImageOrNull } from "../media/media.view"
 import type {
 	ProductAdminListQuery,
 	ProductInput,
@@ -37,6 +37,8 @@ const cardSelect = {
 	id: true,
 	name: true,
 	slug: true,
+	badge: true,
+	typeLabel: true,
 	shortDescription: true,
 	isFeatured: true,
 	featuredAsset: { select: assetSelect },
@@ -68,9 +70,15 @@ const toCard = (row: CardRow) => {
 		id: row.id,
 		name: row.name,
 		slug: row.slug,
+		badge: row.badge,
+		typeLabel: row.typeLabel,
 		shortDescription: row.shortDescription,
 		isFeatured: row.isFeatured,
-		featuredImage: row.featuredAsset ?? (fallback ? { ...fallback.asset, alt: fallback.alt ?? fallback.asset.alt } : null),
+		featuredImage: row.featuredAsset
+			? toImage(row.featuredAsset)
+			: fallback
+				? toImage(fallback.asset, fallback.alt)
+				: null,
 		price: { min: summary.minPrice, max: summary.maxPrice },
 		compareAtPrice: summary.compareAtPrice,
 		inStock: summary.inStock,
@@ -161,6 +169,8 @@ const detailSelect = {
 	id: true,
 	name: true,
 	slug: true,
+	badge: true,
+	typeLabel: true,
 	shortDescription: true,
 	description: true,
 	isFeatured: true,
@@ -204,7 +214,7 @@ const toVariant = (v: VariantRow) => ({
 	weightKg: v.weightKg ? v.weightKg.toFixed(3) : null,
 	isDefault: v.isDefault,
 	sortOrder: v.sortOrder,
-	image: v.image,
+	image: toImageOrNull(v.image),
 	attributes: attributeValuesOf(v).map(({ attributeId, attributeCode, attributeName, valueId, code, label, hexColor }) => ({
 		attributeId,
 		attributeCode,
@@ -312,7 +322,11 @@ const list = async (query: ProductListQuery) => {
 	}
 
 	const orderBy: Prisma.ProductOrderByWithRelationInput[] =
-		sort === "name" ? [{ name: "asc" }, { id: "asc" }] : [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "asc" }]
+		sort === "name"
+			? [{ name: "asc" }, { id: "asc" }]
+			: sort === "featured"
+				? [{ isFeatured: "desc" }, { sortOrder: "asc" }, { publishedAt: "desc" }, { id: "asc" }]
+				: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "asc" }]
 
 	const [rows, total] = await prisma.$transaction([
 		prisma.product.findMany({ where, orderBy, select: cardSelect, ...toSkipTake(pagination) }),
@@ -342,14 +356,16 @@ const getBySlug = async (slug: string) => {
 		id: row.id,
 		name: row.name,
 		slug: row.slug,
+		badge: row.badge,
+		typeLabel: row.typeLabel,
 		shortDescription: row.shortDescription,
 		description: row.description,
 		isFeatured: row.isFeatured,
 		metaTitle: row.metaTitle,
 		metaDescription: row.metaDescription,
 		publishedAt: row.publishedAt,
-		featuredImage: row.featuredAsset,
-		images: row.images.map((i) => ({ ...i.asset, alt: i.alt ?? i.asset.alt, sortOrder: i.sortOrder })),
+		featuredImage: toImageOrNull(row.featuredAsset),
+		images: row.images.map((i) => ({ ...toImage(i.asset, i.alt), sortOrder: i.sortOrder })),
 		price: { min: summary.minPrice, max: summary.maxPrice },
 		compareAtPrice: summary.compareAtPrice,
 		inStock: summary.inStock,
@@ -410,7 +426,7 @@ const adminList = async (query: ProductAdminListQuery) => {
 		)
 		return {
 			...product,
-			featuredImage: featuredAsset ?? images[0]?.asset ?? null,
+			featuredImage: toImageOrNull(featuredAsset ?? images[0]?.asset),
 			categories: categories.map((c) => c.category),
 			price: { min: summary.minPrice, max: summary.maxPrice },
 			inStock: summary.inStock,
@@ -429,9 +445,9 @@ const adminGet = async (id: string) => {
 
 	return {
 		...row,
-		featuredImage: row.featuredAsset,
+		featuredImage: toImageOrNull(row.featuredAsset),
 		featuredAsset: undefined,
-		images: row.images.map((i) => ({ assetId: i.assetId, alt: i.alt, sortOrder: i.sortOrder, asset: i.asset })),
+		images: row.images.map((i) => ({ assetId: i.assetId, alt: i.alt, sortOrder: i.sortOrder, asset: toImage(i.asset) })),
 		variants: row.variants.map(toAdminVariant),
 		categories: row.categories.map((c) => c.category),
 		categoryIds: row.categories.map((c) => c.category.id),
