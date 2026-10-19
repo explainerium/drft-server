@@ -3,6 +3,7 @@ import type { Prisma, UserRole, UserStatus } from "@prisma/client"
 import { env } from "../../../config"
 import httpStatus from "../../../shared/httpStatus"
 import { toMeta, toSkipTake } from "../../../shared/pagination"
+import { SALE_STATUSES } from "../../../domain/order/orderRules"
 import { prisma } from "../../../shared/prisma"
 import ApiError from "../../errors/ApiError"
 import { toPublicUser } from "../auth/auth.interface"
@@ -39,11 +40,19 @@ const list = async (query: ListQuery) => {
 	}
 
 	const [users, total] = await prisma.$transaction([
-		prisma.user.findMany({ where, orderBy: { [query.sortBy]: query.sortOrder }, ...toSkipTake(query) }),
+		prisma.user.findMany({
+			where,
+			orderBy: { [query.sortBy]: query.sortOrder },
+			...toSkipTake(query),
+			include: { _count: { select: { orders: true } } },
+		}),
 		prisma.user.count({ where }),
 	])
 
-	return { data: users.map((u) => ({ ...toPublicUser(u), lastLoginAt: u.lastLoginAt })), meta: toMeta(query, total) }
+	return {
+		data: users.map((u) => ({ ...toPublicUser(u), lastLoginAt: u.lastLoginAt, orderCount: u._count.orders })),
+		meta: toMeta(query, total),
+	}
 }
 
 const get = async (id: string) => {
@@ -52,7 +61,19 @@ const get = async (id: string) => {
 		include: { addresses: { orderBy: { createdAt: "asc" } } },
 	})
 	if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found")
-	return { ...toPublicUser(user), lastLoginAt: user.lastLoginAt, addresses: user.addresses }
+	const sales = await prisma.order.aggregate({
+		where: { userId: id, status: { in: SALE_STATUSES } },
+		_sum: { total: true },
+		_count: { _all: true },
+	})
+	return {
+		...toPublicUser(user),
+		lastLoginAt: user.lastLoginAt,
+		addresses: user.addresses,
+		// Paid orders only; unpaid and cancelled ones are not spending.
+		paidOrders: sales._count._all,
+		totalSpent: (sales._sum.total ?? 0).toFixed(2),
+	}
 }
 
 /** Only an ADMIN can create staff or admin accounts. */

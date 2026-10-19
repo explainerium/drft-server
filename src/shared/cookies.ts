@@ -17,6 +17,8 @@ export const COOKIE = {
 	SESSION: "drft_session",
 	// Guest cart token. Dropped once the cart is merged into a signed-in customer's.
 	CART: "drft_cart",
+	// Access token of the last order placed in this browser (guest order pages).
+	ORDER: "drft_order",
 } as const
 
 // Refresh token is only ever needed by the auth endpoints, so it is not sent
@@ -57,4 +59,12 @@ export const setCartCookie = (res: Response, token: string): void => {
 
 export const clearCartCookie = (res: Response): void => {
 	res.clearCookie(COOKIE.CART, base("/"))
+}
+
+// Only the order endpoints read it.
+const ORDER_PATH = "/api/v1/orders"
+const ORDER_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+
+export const setOrderCookie = (res: Response, token: string): void => {
+	res.cookie(COOKIE.ORDER, token, base(ORDER_PATH, ORDER_MAX_AGE_MS))
 }

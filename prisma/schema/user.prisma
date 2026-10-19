@@ -34,6 +34,10 @@ model User {
   addresses               Address[]
   refreshTokens           RefreshToken[]
   cart                    Cart?
+  orders                  Order[]
+  wishlistItems           WishlistItem[]
+  orderStatusChanges      OrderStatusHistory[]     @relation("OrderStatusActor")
+  orderNotes              OrderNote[]              @relation("OrderNoteAuthor")
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   assetsUploaded          Asset[]                  @relation("AssetUploader")

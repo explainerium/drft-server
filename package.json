@@ -18,7 +18,8 @@
     "prisma:studio": "prisma studio",
     "seed:admin": "tsx prisma/seed/admin.seed.ts",
     "seed:catalog": "tsx prisma/seed/catalog.seed.ts",
-    "seed:media": "tsx prisma/seed/media.seed.ts"
+    "seed:media": "tsx prisma/seed/media.seed.ts",
+    "seed:checkout": "tsx prisma/seed/checkout.seed.ts"
   },
   "engines": {
     "node": ">=24"

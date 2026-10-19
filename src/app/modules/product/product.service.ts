@@ -34,7 +34,7 @@ const visibleCategories = {
 	select: { category: { select: { id: true, name: true, slug: true } } },
 } satisfies Prisma.Product$categoriesArgs
 
-const cardSelect = {
+export const cardSelect = {
 	id: true,
 	name: true,
 	slug: true,
@@ -65,7 +65,7 @@ const cardSelect = {
 
 type CardRow = Prisma.ProductGetPayload<{ select: typeof cardSelect }>
 
-const toCard = (row: CardRow) => {
+export const toCard = (row: CardRow) => {
 	const summary = summarizeVariants(
 		row.variants.map((v) => ({
 			price: money(v.price),

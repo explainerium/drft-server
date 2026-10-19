@@ -1,0 +1,40 @@
+// Where the store ships and what it costs. A country belongs to at most one
+// active zone; checkout offers that zone's active rates.
+
+model ShippingZone {
+  id        String   @id @default(uuid())
+  name      String
+  // ISO 3166-1 alpha-2 codes, e.g. ["NL", "BE"].
+  countries String[]
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  rates ShippingRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shipping_zones")
+}
+
+model ShippingRate {
+  id     String       @id @default(uuid())
+  zoneId String
+  zone   ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  name              String
+  description       String?
+  // Gross (VAT included), like product prices.
+  price             Decimal @db.Decimal(12, 2)
+  // Free when the cart reaches the store's free shipping threshold (settings: shipping).
+  freeOverThreshold Boolean @default(false)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@map("shipping_rates")
+}

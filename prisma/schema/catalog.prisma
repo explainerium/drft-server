@@ -71,12 +71,13 @@ model Product {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  categories ProductCategory[]
-  variants   ProductVariant[]
-  images     ProductImage[]
-  specs      ProductSpec[]
-  related    RelatedProduct[]  @relation("RelatedFrom")
-  relatedBy  RelatedProduct[]  @relation("RelatedTo")
+  categories    ProductCategory[]
+  variants      ProductVariant[]
+  images        ProductImage[]
+  specs         ProductSpec[]
+  related       RelatedProduct[]  @relation("RelatedFrom")
+  relatedBy     RelatedProduct[]  @relation("RelatedTo")
+  wishlistItems WishlistItem[]
 
   @@index([status])
   @@index([isFeatured, status])
@@ -121,6 +122,8 @@ model ProductVariant {
 
   attributeValues VariantAttributeValue[]
   cartItems       CartItem[]
+  orderItems      OrderItem[]
+  wishlistItems   WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

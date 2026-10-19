@@ -17,4 +17,7 @@ router.post("/addresses", validateRequest(AccountValidation.createAddressSchema)
 router.patch("/addresses/:id", validateRequest(AccountValidation.updateAddressSchema), AccountController.updateAddress)
 router.delete("/addresses/:id", validateRequest(AccountValidation.addressIdSchema), AccountController.deleteAddress)
 
+// Orders placed while signed in. One order is GET /orders/:id (shared with guests).
+router.get("/orders", validateRequest(AccountValidation.listOrdersSchema), AccountController.listOrders)
+
 export const AccountRoutes = router

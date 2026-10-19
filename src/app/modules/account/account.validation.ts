@@ -1,6 +1,8 @@
 import { z } from "zod"
+import { paginationQuery } from "../../../shared/pagination"
 
-const address = z.object({
+/** A postal address; checkout reuses it for order addresses. */
+export const postalAddress = z.object({
 	firstName: z.string().trim().min(1).max(100),
 	lastName: z.string().trim().min(1).max(100),
 	company: z.string().trim().max(120).nullish(),
@@ -15,6 +17,9 @@ const address = z.object({
 		.length(2)
 		.transform((c) => c.toUpperCase()),
 	phone: z.string().trim().max(40).nullish(),
+})
+
+const address = postalAddress.extend({
 	isDefaultShipping: z.boolean().optional(),
 	isDefaultBilling: z.boolean().optional(),
 })
@@ -36,5 +41,15 @@ const createAddressSchema = z.object({ body: address })
 const updateAddressSchema = z.object({ params: addressIdParams, body: address.partial() })
 const addressIdSchema = z.object({ params: addressIdParams })
 
-export const AccountValidation = { updateProfileSchema, createAddressSchema, updateAddressSchema, addressIdSchema }
+const listOrdersSchema = z.object({
+	query: z.object({ page: paginationQuery.page, limit: paginationQuery.limit.default(10) }),
+})
+
+export const AccountValidation = {
+	updateProfileSchema,
+	createAddressSchema,
+	updateAddressSchema,
+	addressIdSchema,
+	listOrdersSchema,
+}
 export type AddressInput = z.infer<typeof address>

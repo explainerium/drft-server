@@ -61,6 +61,11 @@ const taxSchema = z.object({
 	defaultVatRate: z.number().min(0).max(50),
 })
 
+const inventorySchema = z.object({
+	// Tracked variants at or below this stock are listed on the admin dashboard.
+	lowStockThreshold: z.number().int().min(0).max(1_000),
+})
+
 interface SettingGroup<S extends z.ZodObject> {
 	description: string
 	schema: S
@@ -100,6 +105,12 @@ export const SETTING_GROUPS = {
 		schema: taxSchema,
 		defaults: { defaultVatRate: 21 },
 		isPublic: true,
+	}),
+	inventory: group({
+		description: "Low stock warning level",
+		schema: inventorySchema,
+		defaults: { lowStockThreshold: 3 },
+		isPublic: false,
 	}),
 }
 

@@ -14,3 +14,13 @@ export const credentialLimiter = rateLimit({
 	skip: () => env.NODE_ENV === "test",
 	message: { success: false, statusCode: 429, message: "Too many attempts. Please try again shortly." },
 })
+
+/** Placing orders takes stock; this stops a script from reserving a product out of stock. */
+export const orderLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	limit: 20,
+	standardHeaders: "draft-8",
+	legacyHeaders: false,
+	skip: () => env.NODE_ENV === "test",
+	message: { success: false, statusCode: 429, message: "Too many orders from this connection. Please try again shortly." },
+})

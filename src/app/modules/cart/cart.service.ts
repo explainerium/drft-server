@@ -197,7 +197,8 @@ const recommendationsFor = async (productIds: string[]) => {
 	return picks
 }
 
-const pricing = async () => {
+/** Free shipping threshold and the estimate VAT rate, from settings. */
+export const cartPricing = async () => {
 	const rows = await prisma.setting.findMany({ where: { key: { in: ["shipping", "tax"] } } })
 	const stored = new Map(rows.map((row) => [row.key, row.value]))
 	return {
@@ -211,11 +212,11 @@ const view = async (cartId: string | null) => {
 		? await prisma.cartItem.findMany({ where: { cartId }, orderBy: { createdAt: "asc" }, select: itemSelect })
 		: []
 	const items = rows.map(toLine)
-	const [recommendations, cartPricing] = await Promise.all([
+	const [recommendations, pricing] = await Promise.all([
 		recommendationsFor([...new Set(items.map((i) => i.product.id))]),
-		pricing(),
+		cartPricing(),
 	])
-	return { items, recommendations, summary: summarizeCart(items, cartPricing) }
+	return { items, recommendations, summary: summarizeCart(items, pricing) }
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -284,4 +285,15 @@ const removeItem = async (ctx: CartContext, itemId: string) => {
 	return { cart: await view(cartId), cookie }
 }
 
-export const CartService = { get, addItem, updateItem, removeItem }
+/** The cart's lines for checkout (no recommendations). Never creates a cart. */
+const lines = async (ctx: CartContext) => {
+	const { cartId, cookie } = await resolve(ctx, false)
+	const rows = cartId
+		? await prisma.cartItem.findMany({ where: { cartId }, orderBy: { createdAt: "asc" }, select: itemSelect })
+		: []
+	return { cartId, cookie, items: rows.map(toLine) }
+}
+
+export type CartLine = ReturnType<typeof toLine>
+
+export const CartService = { get, addItem, updateItem, removeItem, lines }

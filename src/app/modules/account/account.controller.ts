@@ -2,6 +2,8 @@ import type { RequestHandler } from "express"
 import catchAsync from "../../../shared/catchAsync"
 import httpStatus from "../../../shared/httpStatus"
 import sendResponse from "../../../shared/sendResponse"
+import type { PaginationInput } from "../../../shared/pagination"
+import { OrderService } from "../order/order.service"
 import { AccountService } from "./account.service"
 
 const updateProfile: RequestHandler = catchAsync(async (req, res) => {
@@ -29,4 +31,16 @@ const deleteAddress: RequestHandler = catchAsync(async (req, res) => {
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Address deleted" })
 })
 
-export const AccountController = { updateProfile, listAddresses, createAddress, updateAddress, deleteAddress }
+const listOrders: RequestHandler = catchAsync(async (req, res) => {
+	const { orders, meta } = await OrderService.listForCustomer(req.user!.sub, req.query as unknown as PaginationInput)
+	sendResponse(res, { statusCode: httpStatus.OK, message: "Orders", data: orders, meta })
+})
+
+export const AccountController = {
+	updateProfile,
+	listAddresses,
+	createAddress,
+	updateAddress,
+	deleteAddress,
+	listOrders,
+}

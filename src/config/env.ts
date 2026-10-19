@@ -48,6 +48,16 @@ const schema = z.object({
 	R2_SECRET_ACCESS_KEY: z.string().optional(),
 	R2_BUCKET: z.string().optional(),
 	R2_PUBLIC_URL: z.url().optional(),
+
+	// Payments. A provider is offered at checkout only when its keys are set.
+	STRIPE_SECRET_KEY: z.string().optional(),
+	STRIPE_WEBHOOK_SECRET: z.string().optional(),
+	PAYPAL_CLIENT_ID: z.string().optional(),
+	PAYPAL_CLIENT_SECRET: z.string().optional(),
+	PAYPAL_ENV: z.enum(["sandbox", "live"]).default("sandbox"),
+
+	// Vercel Cron sends it as "Authorization: Bearer <CRON_SECRET>". Unset → the cron route is off.
+	CRON_SECRET: z.string().min(16).optional(),
 })
 
 // `KEY=` in .env means "not set", not "set to an empty string" — otherwise an

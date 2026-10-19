@@ -1,0 +1,21 @@
+// Customer engagement: the wishlist for now (newsletter, contact messages and
+// reviews join here when they are built).
+
+// One row per saved product. Saved from the cart, it remembers the variant
+// (size, colour) that was in the cart.
+model WishlistItem {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([variantId])
+  @@map("wishlist_items")
+}
