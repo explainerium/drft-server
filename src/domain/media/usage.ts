@@ -16,6 +16,7 @@ export interface AssetUsage {
 	variants: UsageEntry
 	/** The story photo in a product's editorial content (Product.content.story). */
 	productStories: UsageEntry
+	postCovers: UsageEntry
 	/** e.g. "SEO default share image"; settings are few, so no count is needed. */
 	settings: string[]
 }
@@ -48,6 +49,9 @@ export const describeAssetUsage = (usage: AssetUsage): string | null => {
 	}
 	if (usage.productStories.total) {
 		parts.push(`the story photo of ${plural(usage.productStories.total, "product", "products")}${list(usage.productStories)}`)
+	}
+	if (usage.postCovers.total) {
+		parts.push(`the cover of ${plural(usage.postCovers.total, "journal post", "journal posts")}${list(usage.postCovers)}`)
 	}
 	for (const setting of usage.settings) parts.push(`the ${setting} setting`)
 

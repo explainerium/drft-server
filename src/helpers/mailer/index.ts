@@ -25,7 +25,7 @@ const getTransporter = (): Transporter | undefined => {
 /**
  * Sends a mail, or logs it when SMTP is not configured (development).
  * Never throws: a mail that fails must not undo the action that triggered it.
- * Branded HTML templates arrive with the email module (M3).
+ * Build the content with renderMail (./template) for the branded HTML version.
  */
 export const sendMail = async (mail: Mail): Promise<void> => {
 	const transport = getTransporter()

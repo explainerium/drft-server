@@ -85,7 +85,12 @@ export const SETTING_GROUPS = {
 	seo: group({
 		description: "Default page title, description and share image",
 		schema: seoSchema,
-		defaults: { defaultTitle: "DRFT", titleTemplate: "%s | DRFT", defaultDescription: "", ogImageAssetId: null },
+		defaults: {
+			defaultTitle: "DRFT — Kitesurf & Foil Equipment",
+			titleTemplate: "%s | DRFT",
+			defaultDescription: "High-performance kites, boards and foils, engineered for riders.",
+			ogImageAssetId: null,
+		},
 		isPublic: true,
 	}),
 	social: group({

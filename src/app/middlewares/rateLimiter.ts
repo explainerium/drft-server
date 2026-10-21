@@ -24,3 +24,13 @@ export const orderLimiter = rateLimit({
 	skip: () => env.NODE_ENV === "test",
 	message: { success: false, statusCode: 429, message: "Too many orders from this connection. Please try again shortly." },
 })
+
+/** Newsletter sign-ups and the contact form: each one sends a mail, so a script must not loop them. */
+export const formLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	limit: 10,
+	standardHeaders: "draft-8",
+	legacyHeaders: false,
+	skip: () => env.NODE_ENV === "test",
+	message: { success: false, statusCode: 429, message: "Too many requests from this connection. Please try again shortly." },
+})

@@ -1,0 +1,78 @@
+// Editorial content edited in the admin: pages at the site root (/about,
+// /privacy, ...), journal posts and the FAQ. Bodies are rich text, sanitized
+// by the API with the same allow-list as product descriptions.
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Page {
+  id    String  @id @default(uuid())
+  // The URL: /<slug>. Unique across pages only; the storefront's own routes win.
+  slug  String  @unique
+  title String
+  // Lead paragraph under the title (plain text).
+  intro String?
+  body  String?
+
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("pages")
+}
+
+model Post {
+  id          String  @id @default(uuid())
+  slug        String  @unique
+  title       String
+  // Card and list text (plain).
+  excerpt     String?
+  body        String?
+  // Shown on the card: "Destinations", "Tuning".
+  tag         String?
+  author      String?
+  // Worked out from the body on save.
+  readMinutes Int     @default(1)
+
+  coverAssetId String?
+  cover        Asset?  @relation("PostCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+
+  status      ContentStatus @default(DRAFT)
+  // Set on first publish; editable to backdate a dispatch.
+  publishedAt DateTime?
+
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([coverAssetId])
+  @@map("posts")
+}
+
+model FaqItem {
+  id       String  @id @default(uuid())
+  // Questions with the same group are listed together ("Orders & shipping").
+  group    String?
+  question String
+  answer   String
+
+  isPublished Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@map("faq_items")
+}

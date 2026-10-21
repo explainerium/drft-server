@@ -261,7 +261,10 @@ const remove = async (id: string): Promise<void> => {
 		const asset = await tx.asset.findUnique({
 			where: { id },
 			include: {
-				_count: { select: { productImages: true, featuredFor: true, categoryImageFor: true, variantImageFor: true } },
+				_count: {
+					select: { productImages: true, featuredFor: true, categoryImageFor: true, variantImageFor: true, postCovers: true },
+				},
+				postCovers: { take: 3, select: { title: true } },
 				productImages: { take: 3, select: { product: { select: { name: true } } } },
 				featuredFor: { take: 3, select: { name: true } },
 				categoryImageFor: { take: 3, select: { name: true } },
@@ -288,6 +291,7 @@ const remove = async (id: string): Promise<void> => {
 				names: asset.variantImageFor.map((v) => (v.sku ? `${v.product.name} / ${v.sku}` : v.product.name)),
 			},
 			productStories: { total: stories.length, names: stories.map((p) => p.name) },
+			postCovers: { total: asset._count.postCovers, names: asset.postCovers.map((p) => p.title) },
 			settings: seoValue?.ogImageAssetId === id ? ["SEO default share image"] : [],
 		})
 		if (usage) throw new ApiError(httpStatus.CONFLICT, usage)

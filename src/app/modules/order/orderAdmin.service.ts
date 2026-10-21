@@ -3,6 +3,7 @@ import { orderLabel } from "../../../domain/checkout/checkoutRules"
 import { canStaffMove, staffTransitions } from "../../../domain/order/orderRules"
 import { env } from "../../../config"
 import { sendMail } from "../../../helpers/mailer"
+import { renderMail } from "../../../helpers/mailer/template"
 import httpStatus from "../../../shared/httpStatus"
 import { toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
@@ -179,15 +180,6 @@ interface StatusChange extends Tracking {
 	notifyCustomer: boolean
 }
 
-const trackingLines = (order: { trackingCarrier: string | null; trackingNumber: string | null; trackingUrl: string | null }) =>
-	order.trackingNumber
-		? [
-				"",
-				`Tracking${order.trackingCarrier ? ` (${order.trackingCarrier})` : ""}: ${order.trackingNumber}`,
-				...(order.trackingUrl ? [order.trackingUrl] : []),
-			]
-		: []
-
 const notify = async (orderId: string, status: OrderStatus) => {
 	if (status !== "SHIPPED" && status !== "CANCELLED") return
 	const order = await prisma.order.findUniqueOrThrow({
@@ -206,20 +198,35 @@ const notify = async (orderId: string, status: OrderStatus) => {
 	const { firstName } = order.shippingAddress as AddressSnapshot
 	const greeting = `Hi${firstName ? ` ${firstName}` : ""},`
 	// Guests see an order only with the cookie from placing it, so only customers get a link.
-	const details = order.userId ? ["", `Order details: ${env.PUBLIC_BASE_URL}/account/orders/${orderId}`] : []
+	const orderLink = order.userId ? `${env.PUBLIC_BASE_URL}/account/orders/${orderId}` : null
 
 	await sendMail(
 		status === "SHIPPED"
-			? {
+			? renderMail({
 					to: order.email,
 					subject: `Your DRFT order ${label} is on its way`,
-					text: [greeting, "", `Your order ${label} has shipped.`, ...trackingLines(order), ...details].join("\n"),
-				}
-			: {
+					preheader: `Order ${label} has left our warehouse.`,
+					heading: "Your order is on its way",
+					paragraphs: [greeting, `Order ${label} has shipped.`],
+					details: [
+						{ label: "Order", value: label },
+						...(order.trackingCarrier ? [{ label: "Carrier", value: order.trackingCarrier }] : []),
+						...(order.trackingNumber ? [{ label: "Tracking number", value: order.trackingNumber }] : []),
+					],
+					action: order.trackingUrl
+						? { label: "Track your parcel", url: order.trackingUrl }
+						: orderLink
+							? { label: "View your order", url: orderLink }
+							: undefined,
+					after: order.trackingUrl && orderLink ? [`Order details: ${orderLink}`] : [],
+				})
+			: renderMail({
 					to: order.email,
 					subject: `Your DRFT order ${label} was cancelled`,
-					text: [greeting, "", `Your order ${label} was cancelled before payment. Nothing was charged.`].join("\n"),
-				}
+					heading: "Your order was cancelled",
+					paragraphs: [greeting, `Order ${label} was cancelled before payment. Nothing was charged.`],
+					details: [{ label: "Order", value: label }],
+				})
 	)
 }
 

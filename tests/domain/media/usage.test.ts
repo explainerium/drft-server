@@ -8,6 +8,7 @@ const unused: AssetUsage = {
 	categories: none,
 	variants: none,
 	productStories: none,
+	postCovers: none,
 	settings: [],
 }
 

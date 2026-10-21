@@ -3,6 +3,7 @@ import type { User } from "@prisma/client"
 import { env } from "../../../config"
 import { decideRefresh } from "../../../domain/auth/refreshDecision"
 import { sendMail } from "../../../helpers/mailer"
+import { renderMail } from "../../../helpers/mailer/template"
 import httpStatus from "../../../shared/httpStatus"
 import { signAccessToken } from "../../../shared/jwtHelper"
 import { logger } from "../../../shared/logger"
@@ -51,11 +52,18 @@ const sendVerificationMail = async (user: User): Promise<void> => {
 	})
 
 	const link = `${env.PUBLIC_BASE_URL}/verify-email?token=${token}`
-	await sendMail({
-		to: user.email,
-		subject: "Confirm your DRFT account",
-		text: `Welcome to DRFT${user.firstName ? `, ${user.firstName}` : ""}!\n\nConfirm your email address:\n${link}\n\nThis link is valid for 48 hours.`,
-	})
+	await sendMail(
+		renderMail({
+			to: user.email,
+			subject: "Confirm your DRFT account",
+			preheader: "One click to confirm your email address.",
+			heading: `Welcome to DRFT${user.firstName ? `, ${user.firstName}` : ""}`,
+			paragraphs: ["Confirm your email address to finish setting up your account."],
+			action: { label: "Confirm email address", url: link },
+			after: ["This link is valid for 48 hours."],
+			footnote: "You get this email because an account was created with this address on the DRFT store.",
+		})
+	)
 }
 
 const register = async (
@@ -168,11 +176,17 @@ const forgotPassword = async (email: string): Promise<void> => {
 	})
 
 	const link = `${env.PUBLIC_BASE_URL}/reset-password?token=${token}`
-	await sendMail({
-		to: user.email,
-		subject: "Reset your DRFT password",
-		text: `Someone asked to reset the password for this account.\n\nChoose a new password:\n${link}\n\nThis link is valid for 1 hour. If this wasn't you, ignore this email.`,
-	})
+	await sendMail(
+		renderMail({
+			to: user.email,
+			subject: "Reset your DRFT password",
+			preheader: "Choose a new password for your account.",
+			heading: "Reset your password",
+			paragraphs: ["Someone asked to reset the password for this account."],
+			action: { label: "Choose a new password", url: link },
+			after: ["This link is valid for 1 hour. If this wasn't you, ignore this email: your password stays the same."],
+		})
+	)
 }
 
 const resetPassword = async (token: string, password: string): Promise<void> => {

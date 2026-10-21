@@ -13,8 +13,9 @@ const zone = z.object({
 		.array(z.string().trim().toUpperCase().regex(COUNTRY_CODE, "Use two-letter country codes such as NL"))
 		.min(1, "Add at least one country")
 		.max(250),
-	isActive: z.boolean().default(true),
-	sortOrder: sortOrder.default(0),
+	// No defaults here: a PATCH that leaves a field out must not reset it (create adds them).
+	isActive: z.boolean().optional(),
+	sortOrder: sortOrder.optional(),
 })
 
 /** Gross (VAT included), like product prices. */
@@ -32,16 +33,25 @@ const rate = z.object({
 		.nullish()
 		.transform((v) => v || null),
 	price,
-	freeOverThreshold: z.boolean().default(false),
-	isActive: z.boolean().default(true),
-	sortOrder: sortOrder.default(0),
+	freeOverThreshold: z.boolean().optional(),
+	isActive: z.boolean().optional(),
+	sortOrder: sortOrder.optional(),
 })
 
 const zoneIdSchema = z.object({ params: idParams })
 const rateIdSchema = z.object({ params: rateIdParams })
-const createZoneSchema = z.object({ body: zone })
+const createZoneSchema = z.object({
+	body: zone.extend({ isActive: z.boolean().default(true), sortOrder: sortOrder.default(0) }),
+})
 const updateZoneSchema = z.object({ params: idParams, body: zone.partial().refine(nonEmpty, "Nothing to update") })
-const createRateSchema = z.object({ params: idParams, body: rate })
+const createRateSchema = z.object({
+	params: idParams,
+	body: rate.extend({
+		freeOverThreshold: z.boolean().default(false),
+		isActive: z.boolean().default(true),
+		sortOrder: sortOrder.default(0),
+	}),
+})
 const updateRateSchema = z.object({ params: rateIdParams, body: rate.partial().refine(nonEmpty, "Nothing to update") })
 
 export const ShippingValidation = {

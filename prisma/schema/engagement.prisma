@@ -1,5 +1,4 @@
-// Customer engagement: the wishlist for now (newsletter, contact messages and
-// reviews join here when they are built).
+// Customer engagement: wishlist, newsletter subscribers and contact messages.
 
 // One row per saved product. Saved from the cart, it remembers the variant
 // (size, colour) that was in the cart.
@@ -18,4 +17,47 @@ model WishlistItem {
   @@index([productId])
   @@index([variantId])
   @@map("wishlist_items")
+}
+
+enum SubscriberStatus {
+  // Signed up, confirmation mail sent (double opt-in).
+  PENDING
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+model NewsletterSubscriber {
+  id     String           @id @default(uuid())
+  email  String           @unique
+  status SubscriberStatus @default(PENDING)
+  // Where they signed up: "footer", "home".
+  source String?
+
+  // SHA-256 of the token in the confirm and unsubscribe links.
+  tokenHash String @unique
+
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("newsletter_subscribers")
+}
+
+// The contact form. Read by staff in the admin; never shown to other customers.
+model ContactMessage {
+  id          String  @id @default(uuid())
+  name        String
+  email       String
+  subject     String?
+  orderNumber String?
+  message     String
+  isRead      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+  @@map("contact_messages")
 }

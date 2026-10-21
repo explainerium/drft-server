@@ -5,10 +5,15 @@ import { AuthRoutes } from "../modules/auth/auth.routes"
 import { CartRoutes } from "../modules/cart/cart.routes"
 import { CategoryRoutes } from "../modules/category/category.routes"
 import { CheckoutRoutes } from "../modules/checkout/checkout.routes"
+import { ContactRoutes } from "../modules/contact/contact.routes"
 import { CronRoutes } from "../modules/cron/cron.routes"
 import { DashboardRoutes } from "../modules/dashboard/dashboard.routes"
+import { FaqRoutes } from "../modules/faq/faq.routes"
 import { MediaRoutes } from "../modules/media/media.routes"
+import { NewsletterRoutes } from "../modules/newsletter/newsletter.routes"
 import { OrderRoutes } from "../modules/order/order.routes"
+import { PageRoutes } from "../modules/page/page.routes"
+import { PostRoutes } from "../modules/post/post.routes"
 import { ProductRoutes } from "../modules/product/product.routes"
 import { SettingRoutes } from "../modules/setting/setting.routes"
 import { ShippingRoutes } from "../modules/shipping/shipping.routes"
@@ -30,6 +35,11 @@ const moduleRoutes: { path: string; route: Router }[] = [
 	{ path: "/checkout", route: CheckoutRoutes },
 	{ path: "/orders", route: OrderRoutes },
 	{ path: "/wishlist", route: WishlistRoutes },
+	{ path: "/pages", route: PageRoutes },
+	{ path: "/posts", route: PostRoutes },
+	{ path: "/faq", route: FaqRoutes },
+	{ path: "/newsletter", route: NewsletterRoutes },
+	{ path: "/contact", route: ContactRoutes },
 	{ path: "/media", route: MediaRoutes },
 	{ path: "/settings", route: SettingRoutes },
 	{ path: "/shipping", route: ShippingRoutes },
