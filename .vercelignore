@@ -1,4 +1,4 @@
-storage/
-tests/
-dist/
-coverage/
+/storage/
+/tests/
+/dist/
+/coverage/
