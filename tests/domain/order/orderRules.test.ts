@@ -4,6 +4,7 @@ import {
 	changePercent,
 	dailySales,
 	dayKey,
+	fulfilmentOf,
 	shiftDay,
 	staffTransitions,
 } from "../../../src/domain/order/orderRules"
@@ -63,6 +64,26 @@ describe("dailySales", () => {
 	it("has no gap or repeat over the October DST change", () => {
 		const dates = dailySales([], 4, "2026-10-26").map((d) => d.date)
 		expect(dates).toEqual(["2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26"])
+	})
+})
+
+describe("fulfilmentOf", () => {
+	it("groups orders by where they stand and shares out the shipped ones", () => {
+		expect(
+			fulfilmentOf(["DELIVERED", "DELIVERED", "SHIPPED", "PAID", "PROCESSING", "PENDING_PAYMENT", "CANCELLED", "REFUNDED"])
+		).toEqual({
+			total: 8,
+			delivered: 2,
+			shipped: 1,
+			toShip: 2,
+			awaitingPayment: 1,
+			cancelled: 2,
+			shippedPercent: 60,
+		})
+	})
+
+	it("has no shipped share without paid orders", () => {
+		expect(fulfilmentOf(["PENDING_PAYMENT"]).shippedPercent).toBeNull()
 	})
 })
 

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client"
 import { descendantIds } from "../../../domain/catalog/categoryTree"
 import { readProductContent } from "../../../domain/catalog/productContent"
+import { sanitizeRichText } from "../../../domain/catalog/richText"
 import { parseAttributeFilters } from "../../../domain/catalog/productFilters"
 import {
 	normalizeRelatedIds,
@@ -392,7 +393,8 @@ const getBySlug = async (slug: string) => {
 		badge: row.badge,
 		typeLabel: row.typeLabel,
 		shortDescription: row.shortDescription,
-		description: row.description,
+		// Sanitized on save too; again here for rows written before that.
+		description: sanitizeRichText(row.description),
 		content: await publicContent(row.content),
 		isFeatured: row.isFeatured,
 		metaTitle: row.metaTitle,

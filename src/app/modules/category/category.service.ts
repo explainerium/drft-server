@@ -65,13 +65,25 @@ const getBySlug = async (slug: string) => {
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 /** Flat, hidden ones included. The admin builds its own tree / parent picker from parentId. */
-const adminList = () =>
-	prisma.category.findMany({ include: adminInclude, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
+type AdminRow = Prisma.CategoryGetPayload<{ include: typeof adminInclude }>
+
+/** Everything about a category for the admin, with its image as URLs and its counts. */
+const toAdmin = ({ image, _count, ...category }: AdminRow) => ({
+	...category,
+	image: toImageOrNull(image),
+	productCount: _count.products,
+	childCount: _count.children,
+})
+
+const adminList = async () =>
+	(await prisma.category.findMany({ include: adminInclude, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })).map(
+		toAdmin
+	)
 
 const adminGet = async (id: string) => {
 	const category = await prisma.category.findUnique({ where: { id }, include: adminInclude })
 	if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found")
-	return category
+	return toAdmin(category)
 }
 
 /** An explicit slug must be free; a derived one gets a numeric suffix until it is. */
@@ -136,7 +148,7 @@ const update = async (id: string, payload: Partial<CategoryInput>) => {
  */
 const remove = async (id: string) => {
 	const category = await adminGet(id)
-	if (category._count.children > 0) {
+	if (category.childCount > 0) {
 		throw new ApiError(httpStatus.CONFLICT, "Move or delete the subcategories first")
 	}
 	await prisma.category.delete({ where: { id } })

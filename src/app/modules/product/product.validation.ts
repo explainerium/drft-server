@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { productContentSchema } from "../../../domain/catalog/productContent"
+import { sanitizeRichText } from "../../../domain/catalog/richText"
 import { MONEY_PATTERN } from "../../../domain/catalog/variantRules"
 import { paginationQuery } from "../../../shared/pagination"
 
@@ -71,8 +72,12 @@ const product = z.object({
 	badge: z.string().trim().max(40).nullish(),
 	typeLabel: z.string().trim().max(60).nullish(),
 	shortDescription: z.string().trim().max(1_000).nullish(),
-	// TODO(M5): sanitize rich text
-	description: z.string().max(100_000).nullish(),
+	// HTML from the admin editor, reduced to its own formatting before it is stored.
+	description: z
+		.string()
+		.max(100_000)
+		.nullish()
+		.transform((v) => (v === undefined ? undefined : sanitizeRichText(v))),
 	content: productContentSchema.nullish(),
 	featuredAssetId: z.uuid().nullish(),
 	isFeatured: z.boolean().optional(),

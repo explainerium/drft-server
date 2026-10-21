@@ -64,7 +64,7 @@ const list = async (query: ListQuery) => {
 				currency: true,
 				paymentProvider: true,
 				createdAt: true,
-				items: { select: { quantity: true } },
+				items: { orderBy: { position: "asc" }, select: { quantity: true, productName: true } },
 			},
 		}),
 		prisma.order.count({ where }),
@@ -76,6 +76,8 @@ const list = async (query: ListQuery) => {
 		customer: { name: nameOf(order.shippingAddress), email: order.email, isRegistered: !!order.userId },
 		country: (order.shippingAddress as AddressSnapshot | null)?.countryCode ?? null,
 		itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+		// The first line's product, for list rows ("Aero V3 Freeride Kite +1").
+		firstProduct: order.items[0]?.productName ?? null,
 		total: order.total.toFixed(2),
 		currency: order.currency,
 		paymentProvider: order.paymentProvider,

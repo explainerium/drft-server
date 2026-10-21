@@ -11,6 +11,8 @@ import { MediaRoutes } from "../modules/media/media.routes"
 import { OrderRoutes } from "../modules/order/order.routes"
 import { ProductRoutes } from "../modules/product/product.routes"
 import { SettingRoutes } from "../modules/setting/setting.routes"
+import { ShippingRoutes } from "../modules/shipping/shipping.routes"
+import { TaxRoutes } from "../modules/tax/tax.routes"
 import { UserRoutes } from "../modules/user/user.routes"
 import { WishlistRoutes } from "../modules/wishlist/wishlist.routes"
 
@@ -30,6 +32,8 @@ const moduleRoutes: { path: string; route: Router }[] = [
 	{ path: "/wishlist", route: WishlistRoutes },
 	{ path: "/media", route: MediaRoutes },
 	{ path: "/settings", route: SettingRoutes },
+	{ path: "/shipping", route: ShippingRoutes },
+	{ path: "/tax", route: TaxRoutes },
 	{ path: "/dashboard", route: DashboardRoutes },
 	{ path: "/cron", route: CronRoutes },
 ]

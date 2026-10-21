@@ -4,6 +4,7 @@ import {
 	changePercent,
 	dailySales,
 	dayKey,
+	fulfilmentOf,
 	SALE_STATUSES,
 	shiftDay,
 	TO_FULFIL_STATUSES,
@@ -86,7 +87,7 @@ const summary = async (days: number, now = new Date()) => {
 	// A day of margin either side of the time zone; dailySales keeps only the days asked for.
 	const since = new Date(now.getTime() - (2 * days + 1) * DAY_MS)
 
-	const [sales, customers, toFulfil, awaitingPayment, recent, inventory] = await Promise.all([
+	const [sales, customers, placed, toFulfil, awaitingPayment, recent, inventory] = await Promise.all([
 		prisma.order.findMany({
 			where: { status: { in: SALE_STATUSES }, paidAt: { gte: since } },
 			select: { id: true, paidAt: true, total: true },
@@ -95,9 +96,10 @@ const summary = async (days: number, now = new Date()) => {
 			where: { role: "CUSTOMER", deletedAt: null, createdAt: { gte: since } },
 			select: { createdAt: true },
 		}),
+		prisma.order.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, status: true } }),
 		prisma.order.count({ where: { status: { in: TO_FULFIL_STATUSES } } }),
 		prisma.order.count({ where: { status: "PENDING_PAYMENT" } }),
-		OrderAdminService.list({ page: 1, limit: 6, sortOrder: "desc" }),
+		OrderAdminService.list({ page: 1, limit: 8, sortOrder: "desc" }),
 		SettingService.get("inventory") as Promise<{ lowStockThreshold: number }>,
 	])
 
@@ -121,6 +123,7 @@ const summary = async (days: number, now = new Date()) => {
 		averageOrderValue: moneyMetric(average(revenue, orders), average(previousRevenue, previousOrders)),
 		newCustomers: metric(sumOrders(dailySales(signups, days, lastDay)), sumOrders(dailySales(signups, days, previousLastDay))),
 		series: current.map((day) => ({ date: day.date, revenue: fromCents(day.revenueCents), orders: day.orders })),
+		fulfilment: fulfilmentOf(placed.filter((o) => dayKey(o.createdAt) >= firstDay).map((o) => o.status)),
 		toFulfil,
 		awaitingPayment,
 		recentOrders: recent.orders,

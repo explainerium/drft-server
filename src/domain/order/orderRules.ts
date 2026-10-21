@@ -81,6 +81,36 @@ export const dailySales = (sales: SalePoint[], days: number, lastDay: string, ti
 	return [...series.values()]
 }
 
+export interface Fulfilment {
+	/** Orders placed in the period, cancelled ones included. */
+	total: number
+	delivered: number
+	shipped: number
+	toShip: number
+	awaitingPayment: number
+	cancelled: number
+	/** Share of paid orders that have left the warehouse (shipped or delivered), 0–100; null without paid orders. */
+	shippedPercent: number | null
+}
+
+/** Where the orders placed in a period stand now. */
+export const fulfilmentOf = (statuses: OrderStatusName[]): Fulfilment => {
+	const count = (...wanted: OrderStatusName[]) => statuses.filter((s) => wanted.includes(s)).length
+	const delivered = count("DELIVERED")
+	const shipped = count("SHIPPED")
+	const toShip = count(...TO_FULFIL_STATUSES)
+	const paid = delivered + shipped + toShip
+	return {
+		total: statuses.length,
+		delivered,
+		shipped,
+		toShip,
+		awaitingPayment: count("PENDING_PAYMENT"),
+		cancelled: count("CANCELLED", "REFUNDED"),
+		shippedPercent: paid ? Math.round(((delivered + shipped) / paid) * 100) : null,
+	}
+}
+
 /** Percentage change from the previous period, or null when there is nothing to compare with. */
 export const changePercent = (current: number, previous: number): number | null =>
 	previous === 0 ? null : Math.round(((current - previous) / previous) * 1000) / 10

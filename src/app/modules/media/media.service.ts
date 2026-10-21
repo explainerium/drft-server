@@ -270,6 +270,12 @@ const remove = async (id: string): Promise<void> => {
 		})
 		if (!asset) throw new ApiError(httpStatus.NOT_FOUND, "Asset not found")
 
+		// The PDP story photo lives in the product's content JSON, not in a relation.
+		const stories = await tx.product.findMany({
+			where: { content: { path: ["story", "imageAssetId"], equals: id } },
+			select: { name: true },
+			take: 50,
+		})
 		const seo = await tx.setting.findUnique({ where: { key: "seo" } })
 		const seoValue = seo?.value as { ogImageAssetId?: unknown } | null | undefined
 
@@ -281,6 +287,7 @@ const remove = async (id: string): Promise<void> => {
 				total: asset._count.variantImageFor,
 				names: asset.variantImageFor.map((v) => (v.sku ? `${v.product.name} / ${v.sku}` : v.product.name)),
 			},
+			productStories: { total: stories.length, names: stories.map((p) => p.name) },
 			settings: seoValue?.ogImageAssetId === id ? ["SEO default share image"] : [],
 		})
 		if (usage) throw new ApiError(httpStatus.CONFLICT, usage)

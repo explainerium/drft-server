@@ -27,6 +27,11 @@ const protectedRoutes: [method: "get" | "post" | "patch" | "put" | "delete", pat
 	["patch", "/api/v1/orders/admin/00000000-0000-0000-0000-000000000000/status"],
 	["post", "/api/v1/orders/admin/00000000-0000-0000-0000-000000000000/notes"],
 	["get", "/api/v1/dashboard/summary"],
+	["get", "/api/v1/shipping/admin/zones"],
+	["post", "/api/v1/shipping/admin/zones"],
+	["patch", "/api/v1/shipping/admin/rates/00000000-0000-0000-0000-000000000000"],
+	["get", "/api/v1/tax/admin"],
+	["put", "/api/v1/tax/admin/NL"],
 	["get", "/api/v1/settings/store"],
 	["put", "/api/v1/settings/store"],
 ]

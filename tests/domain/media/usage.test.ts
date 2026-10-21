@@ -7,6 +7,7 @@ const unused: AssetUsage = {
 	featuredProducts: none,
 	categories: none,
 	variants: none,
+	productStories: none,
 	settings: [],
 }
 
@@ -36,5 +37,10 @@ describe("describeAssetUsage", () => {
 		})
 		expect(message).toContain("the featured image of 1 product (Aero V3)")
 		expect(message).toContain("2 variants (Aero V3 / AV3-9, Aero V3 / AV3-12)")
+	})
+
+	it("counts the story photo of a product page", () => {
+		const message = describeAssetUsage({ ...unused, productStories: { total: 1, names: ["Aero V3"] } })
+		expect(message).toBe("This image is still used by the story photo of 1 product (Aero V3). Remove it there first.")
 	})
 })

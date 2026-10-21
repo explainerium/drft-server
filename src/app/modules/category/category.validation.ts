@@ -7,8 +7,8 @@ const category = z.object({
 	// Derived from the name when left out.
 	slug: z.string().trim().min(1).max(120).optional(),
 	parentId: z.uuid().nullish(),
-	// TODO(M5): sanitize rich text
-	description: z.string().max(20_000).nullish(),
+	// Plain text: the shop header shows it as a paragraph.
+	description: z.string().trim().max(2_000).nullish(),
 	imageAssetId: z.uuid().nullish(),
 	sortOrder: z.number().int().min(0).max(1_000_000).optional(),
 	isHidden: z.boolean().optional(),
