@@ -12,7 +12,8 @@ const bool = z.enum(["true", "false"]).transform((v) => v === "true")
  * needs it. Add new variables to .env.example as well.
  */
 const schema = z.object({
-	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+	// On Vercel an unset NODE_ENV means production, so the production checks below still run.
+	NODE_ENV: z.enum(["development", "test", "production"]).default(process.env.VERCEL ? "production" : "development"),
 	PORT: z.coerce.number().int().positive().default(5005),
 	LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
