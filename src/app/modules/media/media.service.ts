@@ -186,7 +186,7 @@ const complete = async (
 		throw new ApiError(httpStatus.BAD_REQUEST, "The file has not been uploaded yet")
 	}
 
-	// R2 enforces the signed Content-Length; this is the second lock.
+	// The bucket enforces the signed Content-Length; this is the second lock.
 	if (buffer.byteLength !== token.sizeBytes || buffer.byteLength > MAX_DIRECT_UPLOAD_BYTES) {
 		await deleteKeys([token.key])
 		throw new ApiError(httpStatus.BAD_REQUEST, "The uploaded file does not match the declared size")

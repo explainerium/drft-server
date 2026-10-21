@@ -4,7 +4,7 @@
  */
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 
-/** Direct-to-R2 uploads (presign + complete). Still processed by sharp on "complete". */
+/** Direct-to-bucket uploads (presign + complete). Still processed by sharp on "complete". */
 export const MAX_DIRECT_UPLOAD_BYTES = 25 * 1024 * 1024
 
 /** How long a presigned upload (and its token) stays valid. */

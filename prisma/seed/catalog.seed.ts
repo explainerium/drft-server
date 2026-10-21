@@ -359,7 +359,7 @@ const main = async () => {
 					},
 				})
 			}
-		})
+		}, { timeout: 60_000 }) // many round trips; a remote database needs more than the 5 s default
 	}
 
 	// "Complete your setup" on the Aero PDP, as in the design.

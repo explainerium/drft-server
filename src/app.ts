@@ -60,8 +60,8 @@ app.get("/health", (_req: Request, res: Response) => {
 	})
 })
 
-// Locally stored media (STORAGE_DRIVER=local). With R2, files are served by
-// Cloudflare and this passes through to notFound.
+// Locally stored media (STORAGE_DRIVER=local). With STORAGE_DRIVER=s3, files are
+// served by the bucket and this passes through to notFound.
 app.use("/media", serveLocalMedia)
 
 app.use("/api/v1", router)

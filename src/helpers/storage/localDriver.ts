@@ -52,7 +52,7 @@ export const localDriver: StorageDriver = {
 		// what runs in production. Locally, use POST /media (multipart).
 		throw new ApiError(
 			httpStatus.NOT_IMPLEMENTED,
-			"Direct uploads need STORAGE_DRIVER=r2. Use the regular upload endpoint instead."
+			"Direct uploads need STORAGE_DRIVER=s3. Use the regular upload endpoint instead."
 		)
 	},
 }

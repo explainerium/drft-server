@@ -11,16 +11,19 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "vercel-build": "prisma generate && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed:admin": "tsx prisma/seed/admin.seed.ts",
     "seed:catalog": "tsx prisma/seed/catalog.seed.ts",
     "seed:media": "tsx prisma/seed/media.seed.ts",
     "seed:checkout": "tsx prisma/seed/checkout.seed.ts",
-    "seed:content": "tsx prisma/seed/content.seed.ts"
+    "seed:content": "tsx prisma/seed/content.seed.ts",
+    "storage:cors": "tsx scripts/storage-cors.ts"
   },
   "engines": {
     "node": ">=24"

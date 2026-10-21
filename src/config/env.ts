@@ -40,14 +40,16 @@ const schema = z.object({
 	SMTP_PASS: z.string().optional(),
 	MAIL_FROM: z.string().default("DRFT <no-reply@localhost>"),
 
-	// Storage. "local" writes to ./storage and serves it at /media; "r2" uses
-	// Cloudflare R2 (S3 API) and serves from R2_PUBLIC_URL.
-	STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
-	R2_ACCOUNT_ID: z.string().optional(),
-	R2_ACCESS_KEY_ID: z.string().optional(),
-	R2_SECRET_ACCESS_KEY: z.string().optional(),
-	R2_BUCKET: z.string().optional(),
-	R2_PUBLIC_URL: z.url().optional(),
+	// Storage. "local" writes to ./storage and serves it at /media; "s3" uses an
+	// S3-compatible bucket (Neon Object Storage, or R2) and serves from its
+	// public URL: S3_PUBLIC_URL, else <S3_ENDPOINT>/<S3_BUCKET>.
+	STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+	S3_ENDPOINT: z.url().optional(),
+	S3_REGION: z.string().default("auto"),
+	S3_ACCESS_KEY_ID: z.string().optional(),
+	S3_SECRET_ACCESS_KEY: z.string().optional(),
+	S3_BUCKET: z.string().optional(),
+	S3_PUBLIC_URL: z.url().optional(),
 
 	// Payments. A provider is offered at checkout only when its keys are set.
 	STRIPE_SECRET_KEY: z.string().optional(),
@@ -61,7 +63,7 @@ const schema = z.object({
 })
 
 // `KEY=` in .env means "not set", not "set to an empty string" — otherwise an
-// empty R2_PUBLIC_URL fails URL validation instead of falling back.
+// empty S3_PUBLIC_URL fails URL validation instead of falling back.
 const defined = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== ""))
 
 const parsed = schema.safeParse(defined)
@@ -77,8 +79,11 @@ if (env.NODE_ENV === "production") {
 	const problems: string[] = []
 	if (env.JWT_ACCESS_SECRET.startsWith("dev-only")) problems.push("JWT_ACCESS_SECRET must be set")
 	if (!env.COOKIE_SECURE) problems.push("COOKIE_SECURE must be true")
-	if (env.STORAGE_DRIVER === "r2" && !(env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET && env.R2_PUBLIC_URL)) {
-		problems.push("STORAGE_DRIVER=r2 needs every R2_* variable")
+	if (env.PUBLIC_BASE_URL.includes("localhost")) problems.push("PUBLIC_BASE_URL must be the site origin")
+	// Serverless functions have no lasting disk, so uploads must go to a bucket.
+	if (process.env.VERCEL && env.STORAGE_DRIVER === "local") problems.push("STORAGE_DRIVER must be s3 on Vercel")
+	if (env.STORAGE_DRIVER === "s3" && !(env.S3_ENDPOINT && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_BUCKET)) {
+		problems.push("STORAGE_DRIVER=s3 needs S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY and S3_BUCKET")
 	}
 	if (problems.length) {
 		console.error("Unsafe production configuration:\n- " + problems.join("\n- "))

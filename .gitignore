@@ -1,7 +1,5 @@
 node_modules/
 dist/
-# Serverless bundle — built at deploy time, never committed.
-dist-bundle/
 coverage/
 .vercel/
 *.tsbuildinfo

@@ -2,7 +2,7 @@
  * SVG is stored as-is (no sharp), but it is a document that can carry script.
  * /media is proxied onto the storefront's own domain, so a scripted SVG would be
  * stored XSS there. Uploads are staff-only and the local handler also sends a
- * sandboxing CSP; this check is the part that also protects R2-served files.
+ * sandboxing CSP; this check is the part that also protects bucket-served files.
  *
  * Returns the reason a file is refused, or null when it is acceptable.
  */

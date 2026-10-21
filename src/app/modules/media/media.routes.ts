@@ -47,7 +47,7 @@ router.use(auth(...STAFF_ROLES))
 router.get("/", validateRequest(MediaValidation.listSchema), MediaController.list)
 router.post("/", singleFile, validateRequest(MediaValidation.uploadSchema), MediaController.upload)
 
-// Large files: presign → browser PUTs to R2 → complete registers the asset.
+// Large files: presign → browser PUTs to the bucket → complete registers the asset.
 router.post("/presign", validateRequest(MediaValidation.presignSchema), MediaController.presign)
 router.post("/complete", validateRequest(MediaValidation.completeSchema), MediaController.complete)
 

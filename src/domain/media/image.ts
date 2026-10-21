@@ -44,7 +44,7 @@ export const mimeFromSharpFormat = (format?: string, compression?: string): Imag
 }
 
 /**
- * WebP derivatives made at upload. R2 has no image transformation layer, so
+ * WebP derivatives made at upload. The bucket has no image transformation layer, so
  * every size the storefront uses must exist as a real object.
  */
 export const DERIVATIVE_SIZES = [

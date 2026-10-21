@@ -4,8 +4,8 @@ import { LOCAL_MEDIA_ROOT, resolveInside, storage } from "../../../helpers/stora
 
 /**
  * Serves files written by the local storage driver. Mount at /media in app.ts
- * (outside /api/v1). With STORAGE_DRIVER=r2 it passes everything on (404),
- * because R2 serves its own public URLs.
+ * (outside /api/v1). With STORAGE_DRIVER=s3 it passes everything on (404),
+ * because the bucket serves its own public URLs.
  *
  * - Path traversal: `resolveInside` refuses anything outside storage/public.
  * - Cross-Origin-Resource-Policy: cross-origin overrides helmet's same-origin,

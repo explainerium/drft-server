@@ -1,0 +1,4 @@
+storage/
+tests/
+dist/
+coverage/
