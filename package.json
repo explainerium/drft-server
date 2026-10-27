@@ -23,7 +23,8 @@
     "seed:media": "tsx prisma/seed/media.seed.ts",
     "seed:checkout": "tsx prisma/seed/checkout.seed.ts",
     "seed:content": "tsx prisma/seed/content.seed.ts",
-    "storage:cors": "tsx scripts/storage-cors.ts"
+    "storage:cors": "tsx scripts/storage-cors.ts",
+    "db:backup": "tsx scripts/db-backup.ts"
   },
   "engines": {
     "node": ">=24"

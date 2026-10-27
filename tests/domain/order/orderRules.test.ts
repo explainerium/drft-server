@@ -4,6 +4,7 @@ import {
 	changePercent,
 	dailySales,
 	dayKey,
+	dayStart,
 	fulfilmentOf,
 	shiftDay,
 	staffTransitions,
@@ -92,5 +93,18 @@ describe("changePercent", () => {
 		expect(changePercent(150, 100)).toBe(50)
 		expect(changePercent(50, 200)).toBe(-75)
 		expect(changePercent(10, 0)).toBeNull()
+	})
+})
+
+describe("dayStart", () => {
+	it("is local midnight in the shop's time zone, in winter and summer", () => {
+		expect(dayStart("2026-01-15").toISOString()).toBe("2026-01-14T23:00:00.000Z")
+		expect(dayStart("2026-07-01").toISOString()).toBe("2026-06-30T22:00:00.000Z")
+	})
+
+	it("handles the days the clocks change", () => {
+		expect(dayStart("2026-03-29").toISOString()).toBe("2026-03-28T23:00:00.000Z")
+		expect(dayStart("2026-10-25").toISOString()).toBe("2026-10-24T22:00:00.000Z")
+		expect(dayKey(dayStart("2026-10-25"))).toBe("2026-10-25")
 	})
 })

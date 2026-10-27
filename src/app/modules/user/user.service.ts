@@ -39,7 +39,7 @@ const list = async (query: ListQuery) => {
 			: {}),
 	}
 
-	const [users, total] = await prisma.$transaction([
+	const [users, total] = await Promise.all([
 		prisma.user.findMany({
 			where,
 			orderBy: { [query.sortBy]: query.sortOrder },

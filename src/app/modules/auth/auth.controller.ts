@@ -4,6 +4,7 @@ import { clearAuthCookies, COOKIE, setAuthCookies } from "../../../shared/cookie
 import httpStatus from "../../../shared/httpStatus"
 import { logger } from "../../../shared/logger"
 import sendResponse from "../../../shared/sendResponse"
+import ApiError from "../../errors/ApiError"
 import { AuthService } from "./auth.service"
 
 const device = (req: Request) => ({ userAgent: req.get("user-agent") ?? undefined, ipAddress: req.ip })
@@ -54,6 +55,20 @@ const me: RequestHandler = catchAsync(async (req, res) => {
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Current user", data: user })
 })
 
+/**
+ * The signed-in user, or null for a visitor. With the session cookie but no
+ * valid access token (it lives minutes) it answers 401, so the client
+ * refreshes and asks again.
+ */
+const session: RequestHandler = catchAsync(async (req, res) => {
+	if (!req.user) {
+		if (req.cookies?.[COOKIE.SESSION]) throw new ApiError(httpStatus.UNAUTHORIZED, "Session expired")
+		return sendResponse(res, { statusCode: httpStatus.OK, message: "No session", data: null })
+	}
+	const user = await AuthService.me(req.user.sub)
+	sendResponse(res, { statusCode: httpStatus.OK, message: "Current user", data: user })
+})
+
 const forgotPassword: RequestHandler = catchAsync(async (req, res) => {
 	await AuthService.forgotPassword(req.body.email)
 	sendResponse(res, {
@@ -90,6 +105,7 @@ export const AuthController = {
 	refresh,
 	logout,
 	me,
+	session,
 	forgotPassword,
 	resetPassword,
 	changePassword,

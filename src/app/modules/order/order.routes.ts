@@ -7,6 +7,7 @@ import { OrderValidation } from "./order.validation"
 //   GET   /:id                     the buyer's own order: signed-in customer or the guest who placed it
 //   GET   /admin/list              staff: search (number, email, name), status and customer filters
 //   GET   /admin/counts            staff: orders per status
+//   GET   /admin/export            staff: CSV (?status=&from=&to=, days in the shop's time zone)
 //   GET   /admin/:id               staff: order, customer, history, notes, allowed next statuses
 //   PATCH /admin/:id/status        staff: forward moves only (see domain/order/orderRules)
 //   PATCH /admin/:id/tracking      staff: correct tracking after shipping
@@ -18,6 +19,7 @@ const staff = auth(...STAFF_ROLES)
 
 router.get("/admin/list", staff, validateRequest(OrderValidation.adminListSchema), OrderController.adminList)
 router.get("/admin/counts", staff, OrderController.adminCounts)
+router.get("/admin/export", staff, validateRequest(OrderValidation.exportSchema), OrderController.adminExport)
 router.get("/admin/:id", staff, validateRequest(OrderValidation.orderIdSchema), OrderController.adminGet)
 router.patch(
 	"/admin/:id/status",

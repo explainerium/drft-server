@@ -110,6 +110,14 @@ const updateSchema = z.object({
 
 const idSchema = z.object({ params: idParams })
 
+const importSchema = z.object({
+	body: z.object({
+		csv: z.string().min(1, "The file is empty").max(900_000, "The file is too large (900 KB at most, about 5000 rows)"),
+		// false: only check and report; true: save when every row is valid.
+		apply: z.boolean().default(false),
+	}),
+})
+
 const slugSchema = z.object({ params: z.object({ slug: z.string().trim().min(1).max(160) }) })
 
 const flag = z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1")
@@ -143,7 +151,15 @@ const adminListSchema = z.object({
 	}),
 })
 
-export const ProductValidation = { listSchema, slugSchema, adminListSchema, idSchema, createSchema, updateSchema }
+export const ProductValidation = {
+	listSchema,
+	slugSchema,
+	adminListSchema,
+	idSchema,
+	createSchema,
+	updateSchema,
+	importSchema,
+}
 
 export type VariantInput = z.infer<typeof variant>
 export type ProductInput = z.infer<typeof createSchema>["body"]

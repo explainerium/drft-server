@@ -61,6 +61,29 @@ export interface DayTotal {
 export const shiftDay = (day: string, days: number): string =>
 	new Date(new Date(`${day}T00:00:00Z`).getTime() + days * 86_400_000).toISOString().slice(0, 10)
 
+/** The instant a "YYYY-MM-DD" day starts in the given time zone (DST-aware). */
+export const dayStart = (day: string, timeZone = STORE_TIME_ZONE): Date => {
+	const midnightUtc = new Date(`${day}T00:00:00Z`).getTime()
+	// How far the zone's wall clock is ahead of UTC at an instant.
+	const offsetAt = (instant: number) => {
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			hourCycle: "h23",
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+		}).formatToParts(new Date(instant))
+		const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+		return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) - instant
+	}
+	// Twice, so a day that starts on the other side of a DST switch is right too.
+	const guess = midnightUtc - offsetAt(midnightUtc)
+	return new Date(midnightUtc - offsetAt(guess))
+}
+
 /**
  * One entry per day for the `days` days ending on `lastDay` (oldest first),
  * empty days included. Sales outside those days are ignored. Calendar steps,

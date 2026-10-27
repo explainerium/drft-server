@@ -1,6 +1,7 @@
 import type { OrderStatus, Prisma } from "@prisma/client"
 import { orderLabel } from "../../../domain/checkout/checkoutRules"
 import { canStaffMove, staffTransitions } from "../../../domain/order/orderRules"
+import { toCsv } from "../../../shared/csv"
 import { env } from "../../../config"
 import { sendMail } from "../../../helpers/mailer"
 import { renderMail } from "../../../helpers/mailer/template"
@@ -85,6 +86,86 @@ const list = async (query: ListQuery) => {
 		createdAt: order.createdAt,
 	}))
 	return { orders, meta: toMeta(query, total) }
+}
+
+const EXPORT_LIMIT = 20_000
+
+/** Orders as CSV for accounting: one row per order, newest first, optionally by status and date range. */
+const exportCsv = async (query: { status?: OrderStatus; from?: Date; to?: Date }) => {
+	const rows = await prisma.order.findMany({
+		where: {
+			...(query.status ? { status: query.status } : {}),
+			...(query.from || query.to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lt: query.to } : {}) } } : {}),
+		},
+		orderBy: { createdAt: "desc" },
+		take: EXPORT_LIMIT,
+		select: {
+			number: true,
+			status: true,
+			email: true,
+			shippingAddress: true,
+			shippingMethod: true,
+			currency: true,
+			subtotal: true,
+			shippingTotal: true,
+			vatRate: true,
+			vatTotal: true,
+			total: true,
+			paymentProvider: true,
+			createdAt: true,
+			paidAt: true,
+			shippedAt: true,
+			trackingCarrier: true,
+			trackingNumber: true,
+			items: { orderBy: { position: "asc" }, select: { quantity: true, productName: true, sku: true } },
+		},
+	})
+	return toCsv(
+		[
+			"order",
+			"created_at",
+			"status",
+			"email",
+			"name",
+			"country",
+			"items",
+			"products",
+			"shipping_method",
+			"currency",
+			"subtotal",
+			"shipping",
+			"vat_rate",
+			"vat",
+			"total",
+			"payment",
+			"paid_at",
+			"shipped_at",
+			"carrier",
+			"tracking_number",
+		],
+		rows.map((o) => [
+			orderLabel(o.number),
+			o.createdAt.toISOString(),
+			o.status,
+			o.email,
+			nameOf(o.shippingAddress),
+			(o.shippingAddress as AddressSnapshot | null)?.countryCode ?? null,
+			o.items.reduce((sum, item) => sum + item.quantity, 0),
+			o.items.map((i) => `${i.quantity}× ${i.productName}${i.sku ? ` (${i.sku})` : ""}`).join("; "),
+			o.shippingMethod,
+			o.currency,
+			o.subtotal.toFixed(2),
+			o.shippingTotal.toFixed(2),
+			o.vatRate.toFixed(2),
+			o.vatTotal.toFixed(2),
+			o.total.toFixed(2),
+			o.paymentProvider,
+			o.paidAt?.toISOString(),
+			o.shippedAt?.toISOString(),
+			o.trackingCarrier,
+			o.trackingNumber,
+		])
+	)
 }
 
 /** How many orders are in each status, for the filter tabs. */
@@ -297,4 +378,4 @@ const addNote = async (authorId: string, id: string, body: string) => {
 	return get(id)
 }
 
-export const OrderAdminService = { list, statusCounts, get, changeStatus, updateTracking, addNote }
+export const OrderAdminService = { list, statusCounts, exportCsv, get, changeStatus, updateTracking, addNote }

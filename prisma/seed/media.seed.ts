@@ -6,10 +6,10 @@ import { MediaService } from "../../src/app/modules/media/media.service"
 import { prisma } from "../../src/shared/prisma"
 
 /**
- * Sample product and category photos from the Figma design, uploaded through
- * the media library (so they get the WebP derivatives) and linked to the
- * seeded catalog. Idempotent: a file already in the library (same name) is
- * reused. Run after `seed:admin` and `seed:catalog`; `seed:catalog` resets the
+ * Sample product and category photos (Unsplash License, sources in
+ * images/credits.json), uploaded through the media library (so they get the
+ * WebP derivatives) and linked to the seeded catalog. Idempotent: a file
+ * already in the library (same name) is reused. Run after `seed:admin` and `seed:catalog`; `seed:catalog` resets the
  * product content, so run this again after it.
  *
  *   npm run seed:media
@@ -40,12 +40,19 @@ const products: Record<string, { featured: string; gallery?: string[] }> = {
 	"core-hardshell-harness": { featured: "core-hardshell-harness" },
 	"drift-hydrofoil-front-wing-950": { featured: "drift-hydrofoil-front-wing-950" },
 	"pro-neoprene-impact-vest": { featured: "pro-neoprene-impact-vest" },
+	"dual-action-kite-pump": { featured: "dual-action-kite-pump" },
 }
 
 const categories: Record<string, string> = {
 	kites: "category-kites",
 	"foils-wings": "category-foils-wings",
 	twintips: "category-twintips",
+	boards: "category-boards",
+	"foil-boards": "category-foil-boards",
+	directionals: "category-directionals",
+	"control-bars": "category-control-bars",
+	harnesses: "category-harnesses",
+	accessories: "category-accessories",
 }
 
 // The rider photo behind the Aero V3 story quote.

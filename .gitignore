@@ -30,3 +30,6 @@ desktop.ini
 !.vscode/extensions.json
 .idea/
 .claude/settings.local.json
+
+# Database dumps from npm run db:backup (personal data).
+/backups/

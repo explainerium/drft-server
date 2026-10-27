@@ -5,6 +5,7 @@ import { env } from "../../../config"
 import { sendMail } from "../../../helpers/mailer"
 import { renderMail } from "../../../helpers/mailer/template"
 import catchAsync from "../../../shared/catchAsync"
+import { sendCsv, toCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import { paginationQuery, toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
@@ -130,22 +131,17 @@ const adminList: RequestHandler = catchAsync(async (req, res) => {
 	})
 })
 
-/** A quoted CSV field (doubles inner quotes; a leading = + - @ is defused for spreadsheets). */
-const csv = (value: string) => `"${(/^[=+\-@]/.test(value) ? `'${value}` : value).replace(/"/g, '""')}"`
-
 const exportCsv: RequestHandler = catchAsync(async (_req, res) => {
 	const rows = await prisma.newsletterSubscriber.findMany({
 		where: { status: "SUBSCRIBED" },
 		orderBy: { confirmedAt: "asc" },
 		select: { email: true, source: true, confirmedAt: true },
 	})
-	const lines = [
-		"email,source,confirmed_at",
-		...rows.map((r) => [csv(r.email), csv(r.source ?? ""), csv(r.confirmedAt?.toISOString() ?? "")].join(",")),
-	]
-	res.setHeader("Content-Type", "text/csv; charset=utf-8")
-	res.setHeader("Content-Disposition", 'attachment; filename="drft-newsletter.csv"')
-	res.status(httpStatus.OK).send(lines.join("\n") + "\n")
+	const csv = toCsv(
+		["email", "source", "confirmed_at"],
+		rows.map((r) => [r.email, r.source, r.confirmedAt?.toISOString()])
+	)
+	sendCsv(res, "drft-newsletter.csv", csv)
 })
 
 const remove: RequestHandler = catchAsync(async (req, res) => {

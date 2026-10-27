@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express"
 import catchAsync from "../../../shared/catchAsync"
+import { sendCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import sendResponse from "../../../shared/sendResponse"
 import { ProductService } from "./product.service"
@@ -39,4 +40,30 @@ const remove: RequestHandler = catchAsync(async (req, res) => {
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Product deleted" })
 })
 
-export const ProductController = { list, getBySlug, adminList, adminGet, create, update, remove }
+const duplicate: RequestHandler = catchAsync(async (req, res) => {
+	const data = await ProductService.duplicate(req.params.id as string)
+	sendResponse(res, { statusCode: httpStatus.CREATED, message: "Product duplicated", data })
+})
+
+const exportCsv: RequestHandler = catchAsync(async (_req, res) => {
+	sendCsv(res, "drft-products.csv", await ProductService.exportCsv())
+})
+
+const importCsv: RequestHandler = catchAsync(async (req, res) => {
+	const { csv, apply } = req.body as { csv: string; apply: boolean }
+	const data = await ProductService.importCsv(csv, apply)
+	sendResponse(res, { statusCode: httpStatus.OK, message: data.applied ? "Import applied" : "Import checked", data })
+})
+
+export const ProductController = {
+	list,
+	getBySlug,
+	adminList,
+	adminGet,
+	create,
+	update,
+	remove,
+	duplicate,
+	exportCsv,
+	importCsv,
+}

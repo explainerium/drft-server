@@ -26,6 +26,19 @@ const adminListSchema = z.object({
 	}),
 })
 
+const day = z.iso.date()
+
+const exportSchema = z.object({
+	query: z
+		.object({
+			status: z.enum(ORDER_STATUSES).optional(),
+			// Days in the shop's time zone, both included.
+			from: day.optional(),
+			to: day.optional(),
+		})
+		.refine((q) => !q.from || !q.to || q.from <= q.to, "The start date is after the end date"),
+})
+
 const optionalText = (max: number) => z.string().trim().max(max).nullish()
 
 const tracking = {
@@ -53,4 +66,11 @@ const noteSchema = z.object({
 	body: z.object({ body: z.string().trim().min(1, "Write a note").max(2_000) }),
 })
 
-export const OrderValidation = { orderIdSchema, adminListSchema, changeStatusSchema, trackingSchema, noteSchema }
+export const OrderValidation = {
+	orderIdSchema,
+	adminListSchema,
+	exportSchema,
+	changeStatusSchema,
+	trackingSchema,
+	noteSchema,
+}

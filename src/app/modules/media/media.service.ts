@@ -223,7 +223,7 @@ const list = async (query: ListQuery) => {
 		...(query.mimeType ? { mimeType: { startsWith: query.mimeType } } : {}),
 	}
 
-	const [rows, total] = await prisma.$transaction([
+	const [rows, total] = await Promise.all([
 		prisma.asset.findMany({ where, orderBy: { [query.sortBy]: query.sortOrder }, ...toSkipTake(query) }),
 		prisma.asset.count({ where }),
 	])

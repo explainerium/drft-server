@@ -15,16 +15,23 @@ import { ProductValidation } from "./product.validation"
 //   POST   /admin             staff: product + variants, images, specs, categories, related
 //   PATCH  /admin/:id         staff: lists that are sent replace the stored ones
 //   DELETE /admin/:id         staff
+//   POST   /admin/:id/duplicate  staff: a draft copy (variants without SKU or stock)
+//   GET    /admin/export      staff: every variant as CSV
+//   POST   /admin/import      staff: { csv, apply } price, compare-at price, stock and active by SKU;
+//                             apply=false only reports, apply=true saves when no row has an error
 //
 // Admin routes are registered before "/:slug" so "admin" is never read as a slug.
 const router = Router()
 const staff = auth(...STAFF_ROLES)
 
 router.get("/admin/list", staff, validateRequest(ProductValidation.adminListSchema), ProductController.adminList)
+router.get("/admin/export", staff, ProductController.exportCsv)
+router.post("/admin/import", staff, validateRequest(ProductValidation.importSchema), ProductController.importCsv)
 router.get("/admin/:id", staff, validateRequest(ProductValidation.idSchema), ProductController.adminGet)
 router.post("/admin", staff, validateRequest(ProductValidation.createSchema), ProductController.create)
 router.patch("/admin/:id", staff, validateRequest(ProductValidation.updateSchema), ProductController.update)
 router.delete("/admin/:id", staff, validateRequest(ProductValidation.idSchema), ProductController.remove)
+router.post("/admin/:id/duplicate", staff, validateRequest(ProductValidation.idSchema), ProductController.duplicate)
 
 router.get("/", validateRequest(ProductValidation.listSchema), ProductController.list)
 router.get("/:slug", validateRequest(ProductValidation.slugSchema), ProductController.getBySlug)

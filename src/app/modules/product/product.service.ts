@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { descendantIds } from "../../../domain/catalog/categoryTree"
+import { PRODUCT_CSV_HEADER, planProductImport } from "../../../domain/catalog/productCsv"
 import { readProductContent } from "../../../domain/catalog/productContent"
 import { sanitizeRichText } from "../../../domain/catalog/richText"
 import { parseAttributeFilters } from "../../../domain/catalog/productFilters"
@@ -11,12 +12,14 @@ import {
 	type RuleResult,
 } from "../../../domain/catalog/variantRules"
 import { isInStock, summarizeVariants } from "../../../domain/catalog/variantSummary"
+import { parseCsv, toCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import { toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
 import { slugify, uniqueSlug } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
 import { assetSelect, toImage, toImageOrNull } from "../media/media.view"
+import { SettingService } from "../setting/setting.service"
 import type {
 	ProductAdminListQuery,
 	ProductInput,
@@ -249,11 +252,14 @@ const toVariant = (v: VariantRow) => ({
 	})),
 })
 
-const toPublicVariant = (v: VariantRow) => ({
+/**
+ * The storefront never sees a stock count (competitors would), only whether
+ * the variant can be bought and whether few are left.
+ */
+const toPublicVariant = (v: VariantRow, lowStockThreshold: number) => ({
 	...toVariant(v),
 	inStock: isInStock(v),
-	// Untracked stock has no meaningful count.
-	stock: v.manageStock ? v.stock : null,
+	lowStock: v.manageStock && v.stock > 0 && v.stock <= lowStockThreshold,
 	allowBackorder: v.allowBackorder,
 })
 
@@ -351,7 +357,7 @@ const list = async (query: ProductListQuery) => {
 				? [{ isFeatured: "desc" }, { sortOrder: "asc" }, { publishedAt: "desc" }, { id: "asc" }]
 				: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "asc" }]
 
-	const [rows, total] = await prisma.$transaction([
+	const [rows, total] = await Promise.all([
 		prisma.product.findMany({ where, orderBy, select: cardSelect, ...toSkipTake(pagination) }),
 		prisma.product.count({ where }),
 	])
@@ -372,7 +378,10 @@ const publicContent = async (json: unknown) => {
 
 /** The full product page. Drafts and archived products are a 404. */
 const getBySlug = async (slug: string) => {
-	const row = await prisma.product.findFirst({ where: { slug, status: PUBLISHED }, select: detailSelect })
+	const [row, inventory] = await Promise.all([
+		prisma.product.findFirst({ where: { slug, status: PUBLISHED }, select: detailSelect }),
+		SettingService.get("inventory") as Promise<{ lowStockThreshold: number }>,
+	])
 	if (!row) throw new ApiError(httpStatus.NOT_FOUND, "Product not found")
 
 	const summary = summarizeVariants(
@@ -406,7 +415,7 @@ const getBySlug = async (slug: string) => {
 		compareAtPrice: summary.compareAtPrice,
 		inStock: summary.inStock,
 		options: optionsOf(row.variants),
-		variants: row.variants.map(toPublicVariant),
+		variants: row.variants.map((v) => toPublicVariant(v, inventory.lowStockThreshold)),
 		specs: row.specs,
 		categories: row.categories.map((c) => c.category),
 		related: row.related.map((r) => toCard(r.related)),
@@ -430,7 +439,7 @@ const adminList = async (query: ProductAdminListQuery) => {
 			: {}),
 	}
 
-	const [rows, total] = await prisma.$transaction([
+	const [rows, total] = await Promise.all([
 		prisma.product.findMany({
 			where,
 			orderBy: [{ [query.sortBy]: query.sortOrder }, { id: "asc" }],
@@ -478,9 +487,15 @@ const adminList = async (query: ProductAdminListQuery) => {
 const adminGet = async (id: string) => {
 	const row = await prisma.product.findUnique({ where: { id }, select: adminSelect })
 	if (!row) throw new ApiError(httpStatus.NOT_FOUND, "Product not found")
+	// The editor keeps the asset id in the content and shows this picture for it.
+	const storyAssetId = readProductContent(row.content).story?.imageAssetId
+	const storyAsset = storyAssetId
+		? await prisma.asset.findUnique({ where: { id: storyAssetId }, select: assetSelect })
+		: null
 
 	return {
 		...row,
+		storyImage: toImageOrNull(storyAsset),
 		featuredImage: toImageOrNull(row.featuredAsset),
 		featuredAsset: undefined,
 		images: row.images.map((i) => ({ assetId: i.assetId, alt: i.alt, sortOrder: i.sortOrder, asset: toImage(i.asset) })),
@@ -713,6 +728,7 @@ const assetIdsOf = (payload: Partial<ProductInput>, variants: PreparedVariant[] 
 	payload.featuredAssetId,
 	...(payload.images ?? []).map((i) => i.assetId),
 	...variants.map((v) => v.imageAssetId),
+	payload.content?.story?.imageAssetId,
 ]
 
 const TX_OPTIONS = { timeout: 15_000 }
@@ -723,7 +739,6 @@ const productData = <T extends { content?: ProductInput["content"] }>({ content,
 	...(content === undefined ? {} : { content: content === null ? Prisma.DbNull : content }),
 })
 
-// TODO(M5): sanitize rich text (description) before it is stored.
 const create = async (payload: ProductInput) => {
 	const { categoryIds, images, specs, relatedIds: rawRelated, variants: rawVariants, slug: rawSlug, ...base } = payload
 
@@ -791,4 +806,156 @@ const remove = async (id: string) => {
 	await prisma.product.delete({ where: { id } })
 }
 
-export const ProductService = { list, getBySlug, adminList, adminGet, create, update, remove }
+/**
+ * A new draft with the same content, images, categories, specs and variants.
+ * SKUs must be unique and stock belongs to the original, so variants start
+ * without a SKU and with no stock.
+ */
+const duplicate = async (id: string) => {
+	const source = await adminGet(id)
+	const content = readProductContent(source.content)
+	return create({
+		name: `${source.name} (copy)`.slice(0, 160),
+		status: "DRAFT",
+		badge: source.badge,
+		typeLabel: source.typeLabel,
+		shortDescription: source.shortDescription,
+		description: source.description,
+		content: Object.keys(content).length ? content : null,
+		featuredAssetId: source.featuredAssetId,
+		isFeatured: false,
+		sortOrder: source.sortOrder,
+		metaTitle: source.metaTitle,
+		metaDescription: source.metaDescription,
+		categoryIds: source.categoryIds,
+		images: source.images.map(({ assetId, alt, sortOrder }) => ({ assetId, alt, sortOrder })),
+		specs: source.specs.map(({ group, label, value, sortOrder }) => ({ group, label, value, sortOrder })),
+		relatedIds: source.relatedIds,
+		variants: source.variants.map((v) => ({
+			sku: null,
+			price: v.price,
+			compareAtPrice: v.compareAtPrice,
+			stock: 0,
+			manageStock: v.manageStock,
+			allowBackorder: v.allowBackorder,
+			weightKg: v.weightKg,
+			imageAssetId: v.imageAssetId,
+			isDefault: v.isDefault,
+			isActive: v.isActive,
+			sortOrder: v.sortOrder,
+			attributeValueIds: v.attributeValueIds,
+		})),
+	})
+}
+
+// ─── Spreadsheet export and import ───────────────────────────────────────────
+
+/** One row per variant, in the shape the import reads back (see domain/catalog/productCsv). */
+const exportCsv = async () => {
+	const products = await prisma.product.findMany({
+		orderBy: [{ name: "asc" }, { id: "asc" }],
+		select: {
+			name: true,
+			slug: true,
+			status: true,
+			categories: { select: { category: { select: { slug: true } } } },
+			variants: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: variantSelect },
+		},
+	})
+	const rows = products.flatMap((p) =>
+		p.variants.map((v) => [
+			p.slug,
+			p.name,
+			p.status,
+			p.categories.map((c) => c.category.slug).join("|"),
+			v.sku,
+			attributeValuesOf(v)
+				.map((a) => `${a.attributeName}: ${a.label}`)
+				.join("; "),
+			money(v.price),
+			moneyOrNull(v.compareAtPrice),
+			v.stock,
+			v.manageStock,
+			v.allowBackorder,
+			v.isActive,
+		])
+	)
+	return toCsv([...PRODUCT_CSV_HEADER], rows)
+}
+
+/**
+ * Checks the whole file first and reports every row. With `apply`, the
+ * changes are saved only when no row has an error (all or nothing).
+ */
+const importCsv = async (csv: string, apply: boolean) => {
+	let table: string[][]
+	try {
+		table = parseCsv(csv)
+	} catch (error) {
+		throw new ApiError(httpStatus.BAD_REQUEST, (error as Error).message)
+	}
+
+	const variants = await prisma.productVariant.findMany({
+		where: { sku: { not: null } },
+		select: {
+			id: true,
+			sku: true,
+			price: true,
+			compareAtPrice: true,
+			stock: true,
+			isActive: true,
+			product: { select: { name: true } },
+		},
+	})
+	const current = new Map(
+		variants.map((v) => [
+			v.sku!,
+			{
+				id: v.id,
+				sku: v.sku!,
+				productName: v.product.name,
+				price: money(v.price),
+				compareAtPrice: moneyOrNull(v.compareAtPrice),
+				stock: v.stock,
+				isActive: v.isActive,
+			},
+		])
+	)
+
+	const plan = planProductImport(table, current)
+	if (plan.error) throw new ApiError(httpStatus.BAD_REQUEST, plan.error)
+
+	const errors = plan.rows.filter((r) => r.result === "error").length
+	const applied = apply && errors === 0 && plan.patches.length > 0
+	if (applied) {
+		await prisma.$transaction(
+			plan.patches.map(({ id, ...data }) => prisma.productVariant.update({ where: { id }, data })),
+			{ timeout: 60_000 }
+		)
+	}
+
+	return {
+		applied,
+		summary: {
+			rows: plan.rows.length,
+			updates: plan.patches.length,
+			unchanged: plan.rows.filter((r) => r.result === "unchanged").length,
+			errors,
+		},
+		// Unchanged rows are only counted, so a large file does not echo back in full.
+		rows: plan.rows.filter((r) => r.result !== "unchanged"),
+	}
+}
+
+export const ProductService = {
+	list,
+	getBySlug,
+	adminList,
+	adminGet,
+	create,
+	update,
+	remove,
+	duplicate,
+	exportCsv,
+	importCsv,
+}

@@ -1,6 +1,9 @@
+import type { OrderStatus } from "@prisma/client"
 import type { RequestHandler } from "express"
+import { dayKey, dayStart, shiftDay } from "../../../domain/order/orderRules"
 import catchAsync from "../../../shared/catchAsync"
 import { COOKIE } from "../../../shared/cookies"
+import { sendCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import sendResponse from "../../../shared/sendResponse"
 import { OrderAdminService } from "./orderAdmin.service"
@@ -17,6 +20,16 @@ const getOne: RequestHandler = catchAsync(async (req, res) => {
 const adminList: RequestHandler = catchAsync(async (req, res) => {
 	const { orders, meta } = await OrderAdminService.list(req.query as never)
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Orders", data: orders, meta })
+})
+
+const adminExport: RequestHandler = catchAsync(async (req, res) => {
+	const { status, from, to } = req.query as { status?: OrderStatus; from?: string; to?: string }
+	const csv = await OrderAdminService.exportCsv({
+		status,
+		from: from ? dayStart(from) : undefined,
+		to: to ? dayStart(shiftDay(to, 1)) : undefined,
+	})
+	sendCsv(res, `drft-orders${from || to ? `-${from ?? "start"}-to-${to ?? dayKey(new Date())}` : ""}.csv`, csv)
 })
 
 const adminCounts: RequestHandler = catchAsync(async (_req, res) => {
@@ -44,4 +57,13 @@ const addNote: RequestHandler = catchAsync(async (req, res) => {
 	sendResponse(res, { statusCode: httpStatus.CREATED, message: "Note added", data: order })
 })
 
-export const OrderController = { getOne, adminList, adminCounts, adminGet, changeStatus, updateTracking, addNote }
+export const OrderController = {
+	getOne,
+	adminList,
+	adminCounts,
+	adminExport,
+	adminGet,
+	changeStatus,
+	updateTracking,
+	addNote,
+}

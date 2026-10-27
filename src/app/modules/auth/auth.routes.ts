@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { auth, authAccount } from "../../middlewares/auth"
+import { auth, authAccount, optionalAuth } from "../../middlewares/auth"
 import { credentialLimiter } from "../../middlewares/rateLimiter"
 import validateRequest from "../../middlewares/validateRequest"
 import { AuthController } from "./auth.controller"
@@ -14,6 +14,8 @@ router.post("/logout", AuthController.logout)
 
 // authAccount: a suspended customer must still be able to load their session.
 router.get("/me", authAccount(), AuthController.me)
+// The storefront asks this on every page: a visitor gets null instead of a 401.
+router.get("/session", optionalAuth, AuthController.session)
 
 router.post(
 	"/forgot-password",
