@@ -1,18 +1,21 @@
-import type { Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { Router, type RequestHandler } from "express"
 import { z } from "zod"
 import { resolvePublishedAt } from "../../../domain/catalog/variantRules"
 import { sanitizeRichText } from "../../../domain/catalog/richText"
+import { localize } from "../../../domain/i18n/locale"
 import catchAsync from "../../../shared/catchAsync"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import sendResponse from "../../../shared/sendResponse"
 import { slugify } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
 import { auth, STAFF_ROLES } from "../../middlewares/auth"
 import validateRequest from "../../middlewares/validateRequest"
 
-// Pages at the site root: /about, /warranty, /privacy, ...
+// Pages at the site root: /ueber-drft, /agb, /impressum, ... Storefront reads
+// follow the x-drft-locale header (translations.en over the German columns).
 //
 //   GET    /                  storefront: published slugs (sitemap)
 //   GET    /:slug             storefront: one published page
@@ -27,7 +30,7 @@ import validateRequest from "../../middlewares/validateRequest"
 /** Storefront routes a page slug may not take: the URL would never reach the page. */
 const RESERVED = new Set([
 	"shop", "products", "cart", "checkout", "account", "login", "register", "forgot-password", "reset-password",
-	"verify-email", "journal", "faq", "contact", "newsletter", "admin", "api", "media", "search",
+	"verify-email", "journal", "faq", "contact", "newsletter", "admin", "api", "media", "search", "en", "de",
 ])
 
 const idParams = z.object({ id: z.uuid() })
@@ -60,6 +63,32 @@ const page = z.object({
 	status: status.optional(),
 	metaTitle: plain(160),
 	metaDescription: plain(320),
+	// Other languages; empty fields fall back to the German ones.
+	translations: z
+		.object({
+			en: z
+				.object({
+					title: z.string().trim().max(160),
+					intro: z.string().trim().max(600),
+					body: z
+						.string()
+						.max(200_000)
+						.transform((v) => sanitizeRichText(v) ?? ""),
+					metaTitle: z.string().trim().max(160),
+					metaDescription: z.string().trim().max(320),
+				})
+				.partial(),
+		})
+		.partial()
+		.nullish(),
+})
+
+const PAGE_TEXT = ["title", "intro", "body", "metaTitle", "metaDescription"] as const
+
+/** JSON `null` must be spelled Prisma.DbNull to clear the column; undefined leaves it. */
+const pageData = <T extends { translations?: z.infer<typeof page>["translations"] }>({ translations, ...rest }: T) => ({
+	...rest,
+	...(translations === undefined ? {} : { translations: translations === null ? Prisma.DbNull : translations }),
 })
 
 const adminSelect = {
@@ -72,6 +101,7 @@ const adminSelect = {
 	publishedAt: true,
 	metaTitle: true,
 	metaDescription: true,
+	translations: true,
 	updatedAt: true,
 } satisfies Prisma.PageSelect
 
@@ -87,18 +117,30 @@ const slugs: RequestHandler = catchAsync(async (_req, res) => {
 	const rows = await prisma.page.findMany({
 		where: { status: "PUBLISHED" },
 		orderBy: { slug: "asc" },
-		select: { slug: true, title: true, updatedAt: true },
+		select: { slug: true, title: true, translations: true, updatedAt: true },
 	})
-	sendResponse(res, { statusCode: httpStatus.OK, message: "Pages", data: rows })
+	const locale = currentLocale()
+	const data = rows.map(({ translations, ...row }) => localize(row, translations, locale, ["title"]))
+	sendResponse(res, { statusCode: httpStatus.OK, message: "Pages", data })
 })
 
 const getBySlug: RequestHandler = catchAsync(async (req, res) => {
 	const row = await prisma.page.findFirst({
 		where: { slug: req.params.slug as string, status: "PUBLISHED" },
-		select: { slug: true, title: true, intro: true, body: true, metaTitle: true, metaDescription: true, updatedAt: true },
+		select: {
+			slug: true,
+			title: true,
+			intro: true,
+			body: true,
+			metaTitle: true,
+			metaDescription: true,
+			translations: true,
+			updatedAt: true,
+		},
 	})
 	if (!row) throw new ApiError(httpStatus.NOT_FOUND, "Page not found")
-	sendResponse(res, { statusCode: httpStatus.OK, message: "Page", data: row })
+	const { translations, ...base } = row
+	sendResponse(res, { statusCode: httpStatus.OK, message: "Page", data: localize(base, translations, currentLocale(), PAGE_TEXT) })
 })
 
 const adminList: RequestHandler = catchAsync(async (_req, res) => {
@@ -119,7 +161,7 @@ const create: RequestHandler = catchAsync(async (req, res) => {
 	const input = req.body as z.infer<typeof page> & { status: "DRAFT" | "PUBLISHED" }
 	await assertSlugFree(input.slug)
 	const row = await prisma.page.create({
-		data: { ...input, publishedAt: resolvePublishedAt(input.status, null) },
+		data: { ...pageData(input), publishedAt: resolvePublishedAt(input.status, null) },
 		select: adminSelect,
 	})
 	sendResponse(res, { statusCode: httpStatus.CREATED, message: "Page created", data: row })
@@ -133,7 +175,7 @@ const update: RequestHandler = catchAsync(async (req, res) => {
 	if (input.slug) await assertSlugFree(input.slug, id)
 	const row = await prisma.page.update({
 		where: { id },
-		data: { ...input, publishedAt: resolvePublishedAt(input.status ?? current.status, current.publishedAt) },
+		data: { ...pageData(input), publishedAt: resolvePublishedAt(input.status ?? current.status, current.publishedAt) },
 		select: adminSelect,
 	})
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Page updated", data: row })

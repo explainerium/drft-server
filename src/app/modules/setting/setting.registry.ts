@@ -34,6 +34,11 @@ const seoSchema = z.object({
 	titleTemplate: text(100).refine((v) => v.includes("%s"), "The template must contain %s for the page title"),
 	defaultDescription: text(300),
 	ogImageAssetId: z.uuid().nullable(),
+	// The fields above are German; empty translations fall back to them.
+	translations: z
+		.object({ en: z.object({ defaultTitle: text(70), defaultDescription: text(300) }).partial() })
+		.partial()
+		.optional(),
 })
 
 const socialSchema = z.object({
@@ -86,10 +91,13 @@ export const SETTING_GROUPS = {
 		description: "Default page title, description and share image",
 		schema: seoSchema,
 		defaults: {
-			defaultTitle: "DRFT — Kitesurf & Foil Equipment",
+			defaultTitle: "DRFT — Kitesurf- & Foil-Ausrüstung",
 			titleTemplate: "%s | DRFT",
-			defaultDescription: "High-performance kites, boards and foils, engineered for riders.",
+			defaultDescription: "Kitesurf- und Foil-Ausrüstung von DRFT.",
 			ogImageAssetId: null,
+			translations: {
+				en: { defaultTitle: "DRFT — Kitesurf & Foil Equipment", defaultDescription: "Kitesurf and foil equipment by DRFT." },
+			},
 		},
 		isPublic: true,
 	}),

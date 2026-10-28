@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client"
 import { descendantIds } from "../../../domain/catalog/categoryTree"
 import { PRODUCT_CSV_HEADER, planProductImport } from "../../../domain/catalog/productCsv"
-import { readProductContent } from "../../../domain/catalog/productContent"
+import { productContentSchema, readProductContent } from "../../../domain/catalog/productContent"
+import { localize, translationOf } from "../../../domain/i18n/locale"
 import { sanitizeRichText } from "../../../domain/catalog/richText"
 import { parseAttributeFilters } from "../../../domain/catalog/productFilters"
 import {
@@ -16,6 +17,7 @@ import { parseCsv, toCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import { toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import { slugify, uniqueSlug } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
 import { assetSelect, toImage, toImageOrNull } from "../media/media.view"
@@ -35,8 +37,14 @@ const moneyOrNull = (value: Prisma.Decimal | null): string | null => (value ? va
 
 const visibleCategories = {
 	where: { category: { isHidden: false } },
-	select: { category: { select: { id: true, name: true, slug: true } } },
+	select: { category: { select: { id: true, name: true, slug: true, translations: true } } },
 } satisfies Prisma.Product$categoriesArgs
+
+/** A category link in the request language. */
+const categoryRef = ({ translations, ...category }: { id: string; name: string; slug: string; translations: Prisma.JsonValue }) =>
+	localize(category, translations, currentLocale(), ["name"])
+
+const CARD_TEXT = ["name", "badge", "typeLabel", "shortDescription"] as const
 
 export const cardSelect = {
 	id: true,
@@ -45,6 +53,7 @@ export const cardSelect = {
 	badge: true,
 	typeLabel: true,
 	shortDescription: true,
+	translations: true,
 	isFeatured: true,
 	featuredAsset: { select: assetSelect },
 	// Fallback picture when no featured image is set.
@@ -88,13 +97,16 @@ export const toCard = (row: CardRow) => {
 		}
 	}
 
+	const text = localize(
+		{ name: row.name, badge: row.badge, typeLabel: row.typeLabel, shortDescription: row.shortDescription },
+		row.translations,
+		currentLocale(),
+		CARD_TEXT
+	)
 	return {
 		id: row.id,
-		name: row.name,
+		...text,
 		slug: row.slug,
-		badge: row.badge,
-		typeLabel: row.typeLabel,
-		shortDescription: row.shortDescription,
 		isFeatured: row.isFeatured,
 		featuredImage: row.featuredAsset
 			? toImage(row.featuredAsset)
@@ -107,7 +119,7 @@ export const toCard = (row: CardRow) => {
 		swatches: [...swatches.values()]
 			.sort((a, b) => a.sortOrder - b.sortOrder)
 			.map(({ label, hexColor }) => ({ label, hexColor })),
-		categories: row.categories.map((c) => c.category),
+		categories: row.categories.map((c) => categoryRef(c.category)),
 	}
 }
 
@@ -199,6 +211,7 @@ const detailSelect = {
 	shortDescription: true,
 	description: true,
 	content: true,
+	translations: true,
 	isFeatured: true,
 	metaTitle: true,
 	metaDescription: true,
@@ -376,6 +389,18 @@ const publicContent = async (json: unknown) => {
 	return { ...content, story: { ...story, image: toImageOrNull(asset) } }
 }
 
+/**
+ * The editorial blocks in the request language: a translated block replaces the
+ * German one, and the story photo (one for all languages) stays.
+ */
+const translatedContent = (content: Prisma.JsonValue, translations: Prisma.JsonValue, locale: ReturnType<typeof currentLocale>) => {
+	const parsed = productContentSchema.partial().safeParse(translationOf(translations, locale)?.content ?? {})
+	if (!parsed.success || !Object.keys(parsed.data).length) return content
+	const base = readProductContent(content)
+	const story = parsed.data.story ? { ...parsed.data.story, imageAssetId: base.story?.imageAssetId } : base.story
+	return { ...base, ...parsed.data, ...(story ? { story } : {}) }
+}
+
 /** The full product page. Drafts and archived products are a 404. */
 const getBySlug = async (slug: string) => {
 	const [row, inventory] = await Promise.all([
@@ -395,19 +420,30 @@ const getBySlug = async (slug: string) => {
 		}))
 	)
 
+	const locale = currentLocale()
+	const text = localize(
+		{
+			name: row.name,
+			badge: row.badge,
+			typeLabel: row.typeLabel,
+			shortDescription: row.shortDescription,
+			description: row.description,
+			metaTitle: row.metaTitle,
+			metaDescription: row.metaDescription,
+		},
+		row.translations,
+		locale,
+		[...CARD_TEXT, "description", "metaTitle", "metaDescription"]
+	)
+
 	return {
 		id: row.id,
-		name: row.name,
+		...text,
 		slug: row.slug,
-		badge: row.badge,
-		typeLabel: row.typeLabel,
-		shortDescription: row.shortDescription,
 		// Sanitized on save too; again here for rows written before that.
-		description: sanitizeRichText(row.description),
-		content: await publicContent(row.content),
+		description: sanitizeRichText(text.description),
+		content: await publicContent(translatedContent(row.content, row.translations, locale)),
 		isFeatured: row.isFeatured,
-		metaTitle: row.metaTitle,
-		metaDescription: row.metaDescription,
 		publishedAt: row.publishedAt,
 		featuredImage: toImageOrNull(row.featuredAsset),
 		images: row.images.map((i) => ({ ...toImage(i.asset, i.alt), sortOrder: i.sortOrder })),
@@ -417,7 +453,7 @@ const getBySlug = async (slug: string) => {
 		options: optionsOf(row.variants),
 		variants: row.variants.map((v) => toPublicVariant(v, inventory.lowStockThreshold)),
 		specs: row.specs,
-		categories: row.categories.map((c) => c.category),
+		categories: row.categories.map((c) => categoryRef(c.category)),
 		related: row.related.map((r) => toCard(r.related)),
 	}
 }
@@ -734,9 +770,14 @@ const assetIdsOf = (payload: Partial<ProductInput>, variants: PreparedVariant[] 
 const TX_OPTIONS = { timeout: 15_000 }
 
 /** Scalar product columns. JSON `null` must be spelled Prisma.DbNull to clear the column. */
-const productData = <T extends { content?: ProductInput["content"] }>({ content, ...rest }: T) => ({
+const productData = <T extends { content?: ProductInput["content"]; translations?: ProductInput["translations"] }>({
+	content,
+	translations,
+	...rest
+}: T) => ({
 	...rest,
 	...(content === undefined ? {} : { content: content === null ? Prisma.DbNull : content }),
+	...(translations === undefined ? {} : { translations: translations === null ? Prisma.DbNull : translations }),
 })
 
 const create = async (payload: ProductInput) => {
@@ -822,6 +863,7 @@ const duplicate = async (id: string) => {
 		shortDescription: source.shortDescription,
 		description: source.description,
 		content: Object.keys(content).length ? content : null,
+		translations: (source.translations as ProductInput["translations"]) ?? null,
 		featuredAssetId: source.featuredAssetId,
 		isFeatured: false,
 		sortOrder: source.sortOrder,

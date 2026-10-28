@@ -61,6 +61,23 @@ const spec = z.object({
 	sortOrder: sortOrder.optional(),
 })
 
+/** Text in another language; empty fields fall back to the German ones. */
+const productTranslation = z
+	.object({
+		name: z.string().trim().max(160),
+		badge: z.string().trim().max(40),
+		typeLabel: z.string().trim().max(60),
+		shortDescription: z.string().trim().max(1_000),
+		description: z
+			.string()
+			.max(100_000)
+			.transform((v) => sanitizeRichText(v) ?? ""),
+		metaTitle: z.string().trim().max(160),
+		metaDescription: z.string().trim().max(320),
+		content: productContentSchema,
+	})
+	.partial()
+
 const uniqueAssets = (images: { assetId: string }[]) => new Set(images.map((i) => i.assetId)).size === images.length
 
 const product = z.object({
@@ -79,6 +96,7 @@ const product = z.object({
 		.nullish()
 		.transform((v) => (v === undefined ? undefined : sanitizeRichText(v))),
 	content: productContentSchema.nullish(),
+	translations: z.object({ en: productTranslation }).partial().nullish(),
 	featuredAssetId: z.uuid().nullish(),
 	isFeatured: z.boolean().optional(),
 	sortOrder: sortOrder.optional(),

@@ -23,7 +23,7 @@ export interface MailContent {
 	footnote?: string
 }
 
-const BRAND = "#006398"
+const BRAND = "#2d7811"
 const INK = "#13222d"
 const MUTED = "#5b6b76"
 const PAGE = "#f3f5f7"

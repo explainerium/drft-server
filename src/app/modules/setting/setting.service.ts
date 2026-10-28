@@ -1,7 +1,9 @@
 import type { Prisma } from "@prisma/client"
+import { localize } from "../../../domain/i18n/locale"
 import { storage } from "../../../helpers/storage"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import ApiError from "../../errors/ApiError"
 import {
 	applyGroupUpdate,
@@ -31,7 +33,11 @@ const getPublic = async () => {
 		const asset = seo.ogImageAssetId
 			? await prisma.asset.findUnique({ where: { id: seo.ogImageAssetId }, select: { storageKey: true } })
 			: null
-		result.seo = { ...seo, ogImageUrl: asset ? storage.publicUrl(asset.storageKey) : null }
+		const { translations, ...base } = seo
+		result.seo = {
+			...localize(base, translations, currentLocale(), ["defaultTitle", "defaultDescription"]),
+			ogImageUrl: asset ? storage.publicUrl(asset.storageKey) : null,
+		}
 	}
 
 	return result

@@ -14,6 +14,20 @@ const category = z.object({
 	isHidden: z.boolean().optional(),
 	metaTitle: z.string().trim().max(160).nullish(),
 	metaDescription: z.string().trim().max(320).nullish(),
+	// Other languages; empty fields fall back to the German ones.
+	translations: z
+		.object({
+			en: z
+				.object({
+					name: z.string().trim().max(120),
+					description: z.string().trim().max(2_000),
+					metaTitle: z.string().trim().max(160),
+					metaDescription: z.string().trim().max(320),
+				})
+				.partial(),
+		})
+		.partial()
+		.nullish(),
 })
 
 const slugSchema = z.object({ params: z.object({ slug: z.string().trim().min(1).max(160) }) })

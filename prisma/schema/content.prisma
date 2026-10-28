@@ -21,6 +21,8 @@ model Page {
 
   metaTitle       String?
   metaDescription String?
+  // Other languages: { en: { <field>: <text> } }. The columns above are German, the main language.
+  translations    Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

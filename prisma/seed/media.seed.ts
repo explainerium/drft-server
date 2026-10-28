@@ -23,40 +23,21 @@ const products: Record<string, { featured: string; gallery?: string[] }> = {
 		featured: "aero-v3-freeride-kite",
 		gallery: ["aero-v3-freeride-kite-1", "aero-v3-freeride-kite-2", "aero-v3-freeride-kite-3", "aero-v3-freeride-kite-4"],
 	},
-	"pocket-carbon-foil-board-110": { featured: "pocket-carbon-foil-board-110" },
 	"apex-carbon-twintip-136": {
 		featured: "apex-carbon-twintip-136",
 		gallery: ["apex-carbon-twintip-136", "apex-carbon-twintip-136-2"],
 	},
-	"pulse-5-strut-big-air-kite": { featured: "pulse-5-strut-big-air-kite" },
+	"pocket-carbon-foil-board-110": { featured: "pocket-carbon-foil-board-110" },
 	"sentry-pro-bar-system": {
 		featured: "sentry-pro-bar-system",
 		gallery: ["sentry-pro-bar-system", "sentry-pro-bar-system-2"],
 	},
-	"glide-hydrofoil-850-set": { featured: "glide-hydrofoil-850-set" },
-	"vantage-carbon-foil-mast-85": { featured: "vantage-carbon-foil-mast-85" },
-	"nomad-travel-boardbag": { featured: "nomad-travel-boardbag" },
-	"velocity-short-board-5-2": { featured: "velocity-short-board-5-2" },
-	"core-hardshell-harness": { featured: "core-hardshell-harness" },
-	"drift-hydrofoil-front-wing-950": { featured: "drift-hydrofoil-front-wing-950" },
-	"pro-neoprene-impact-vest": { featured: "pro-neoprene-impact-vest" },
-	"dual-action-kite-pump": { featured: "dual-action-kite-pump" },
 }
 
-const categories: Record<string, string> = {
-	kites: "category-kites",
-	"foils-wings": "category-foils-wings",
-	twintips: "category-twintips",
-	boards: "category-boards",
-	"foil-boards": "category-foil-boards",
-	directionals: "category-directionals",
-	"control-bars": "category-control-bars",
-	harnesses: "category-harnesses",
-	accessories: "category-accessories",
-}
+const categories: Record<string, string> = { produkte: "category-products" }
 
-// The rider photo behind the Aero V3 story quote.
-const STORY_IMAGES: Record<string, string> = { "aero-v3-freeride-kite": "aero-v3-freeride-kite-story" }
+// Rider photos behind a product story quote (by slug); none while the sample products have no story.
+const STORY_IMAGES: Record<string, string> = {}
 
 const main = async () => {
 	const admin = await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { createdAt: "asc" } })

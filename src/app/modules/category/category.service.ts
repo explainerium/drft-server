@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import {
 	ancestorsOf,
 	buildTree,
@@ -6,8 +6,10 @@ import {
 	findInTree,
 	wouldCreateCycle,
 } from "../../../domain/catalog/categoryTree"
+import { localize } from "../../../domain/i18n/locale"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import { slugify, uniqueSlug } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
 import { assetSelect, toImageOrNull } from "../media/media.view"
@@ -22,6 +24,7 @@ const publicSelect = {
 	sortOrder: true,
 	metaTitle: true,
 	metaDescription: true,
+	translations: true,
 	image: { select: assetSelect },
 } satisfies Prisma.CategorySelect
 
@@ -44,7 +47,12 @@ const loadVisible = async () => {
 		}),
 	])
 	const counts = countProductsPerCategory(rows, links)
-	return rows.map(({ image, ...row }) => ({ ...row, image: toImageOrNull(image), productCount: counts.get(row.id) ?? 0 }))
+	const locale = currentLocale()
+	return rows.map(({ image, translations, ...row }) => ({
+		...localize(row, translations, locale, ["name", "description", "metaTitle", "metaDescription"]),
+		image: toImageOrNull(image),
+		productCount: counts.get(row.id) ?? 0,
+	}))
 }
 
 // ─── Storefront ──────────────────────────────────────────────────────────────
@@ -118,12 +126,17 @@ const assertImage = async (imageAssetId: string | null | undefined) => {
 	if (!asset) throw new ApiError(httpStatus.BAD_REQUEST, "Image not found")
 }
 
+/** JSON `null` must be spelled Prisma.DbNull to clear the column; undefined leaves it. */
+const translationsData = (translations: CategoryInput["translations"]) =>
+	translations === undefined ? {} : { translations: translations === null ? Prisma.DbNull : translations }
+
 const create = async (payload: CategoryInput) => {
 	await assertParent(undefined, payload.parentId)
 	await assertImage(payload.imageAssetId)
 
+	const { translations, ...rest } = payload
 	const created = await prisma.category.create({
-		data: { ...payload, slug: await resolveSlug(payload) },
+		data: { ...rest, ...translationsData(translations), slug: await resolveSlug(payload) },
 	})
 	return adminGet(created.id)
 }
@@ -134,10 +147,14 @@ const update = async (id: string, payload: Partial<CategoryInput>) => {
 	await assertParent(id, payload.parentId)
 	await assertImage(payload.imageAssetId)
 
-	const { slug, ...rest } = payload
+	const { slug, translations, ...rest } = payload
 	await prisma.category.update({
 		where: { id },
-		data: { ...rest, ...(slug !== undefined ? { slug: await resolveSlug({ slug }, id) } : {}) },
+		data: {
+			...rest,
+			...translationsData(translations),
+			...(slug !== undefined ? { slug: await resolveSlug({ slug }, id) } : {}),
+		},
 	})
 	return adminGet(id)
 }

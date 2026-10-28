@@ -2,8 +2,10 @@ import crypto from "crypto"
 import { Prisma } from "@prisma/client"
 import { maxQuantity, mergeLines, summarizeCart } from "../../../domain/cart/cartRules"
 import { toCents } from "../../../domain/catalog/variantRules"
+import { localize } from "../../../domain/i18n/locale"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import ApiError from "../../errors/ApiError"
 import { assetSelect, toImageOrNull } from "../media/media.view"
 import { parseStoredGroup } from "../setting/setting.registry"
@@ -116,6 +118,7 @@ const itemSelect = {
 					slug: true,
 					status: true,
 					typeLabel: true,
+					translations: true,
 					featuredAsset: { select: assetSelect },
 					images: { orderBy: { sortOrder: "asc" }, take: 1, select: { asset: { select: assetSelect } } },
 				},
@@ -146,7 +149,14 @@ const toLine = (row: ItemRow) => {
 			.map(({ attributeValue: v }) => ({ name: v.attribute.name, value: v.label, sortOrder: v.attribute.sortOrder }))
 			.sort((a, b) => a.sortOrder - b.sortOrder)
 			.map(({ name, value }) => ({ name, value })),
-		product: { id: product.id, name: product.name, slug: product.slug, typeLabel: product.typeLabel },
+		product: {
+			id: product.id,
+			slug: product.slug,
+			...localize({ name: product.name, typeLabel: product.typeLabel }, product.translations, currentLocale(), [
+				"name",
+				"typeLabel",
+			]),
+		},
 		image: toImageOrNull(variant.image ?? product.featuredAsset ?? product.images[0]?.asset),
 	}
 }
@@ -164,6 +174,7 @@ const recommendationsFor = async (productIds: string[]) => {
 					name: true,
 					slug: true,
 					typeLabel: true,
+					translations: true,
 					featuredAsset: { select: assetSelect },
 					variants: {
 						where: { isActive: true },
@@ -184,9 +195,8 @@ const recommendationsFor = async (productIds: string[]) => {
 		const only = p.variants.length === 1 ? p.variants[0]! : null
 		picks.push({
 			id: p.id,
-			name: p.name,
 			slug: p.slug,
-			typeLabel: p.typeLabel,
+			...localize({ name: p.name, typeLabel: p.typeLabel }, p.translations, currentLocale(), ["name", "typeLabel"]),
 			image: toImageOrNull(p.featuredAsset),
 			price: { min: prices[0]!, max: prices[prices.length - 1]! },
 			// Set when the product has a single variant, so it can be added straight from the cart.
