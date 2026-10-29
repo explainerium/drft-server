@@ -8,6 +8,7 @@ import { prisma } from "../../../shared/prisma"
 import { currentLocale } from "../../../shared/requestContext"
 import ApiError from "../../errors/ApiError"
 import { assetSelect, toImageOrNull } from "../media/media.view"
+import { optionOf } from "../product/product.service"
 import { parseStoredGroup } from "../setting/setting.registry"
 
 /** Who is asking: the signed-in customer, the guest cart cookie, or both (just signed in). */
@@ -107,7 +108,7 @@ const itemSelect = {
 			attributeValues: {
 				select: {
 					attributeValue: {
-						select: { label: true, attribute: { select: { name: true, sortOrder: true } } },
+						select: { label: true, translations: true, attribute: { select: { name: true, sortOrder: true, translations: true } } },
 					},
 				},
 			},
@@ -146,7 +147,7 @@ const toLine = (row: ItemRow) => {
 		lineTotal: ((toCents(unitPrice) * row.quantity) / 100).toFixed(2),
 		// "Kite Size: 9m²", "Colorway: Storm Graphite", in attribute order.
 		options: variant.attributeValues
-			.map(({ attributeValue: v }) => ({ name: v.attribute.name, value: v.label, sortOrder: v.attribute.sortOrder }))
+			.map(({ attributeValue: v }) => optionOf(v))
 			.sort((a, b) => a.sortOrder - b.sortOrder)
 			.map(({ name, value }) => ({ name, value })),
 		product: {

@@ -1,14 +1,15 @@
 import type { Prisma, SubscriberStatus } from "@prisma/client"
 import { Router, type RequestHandler } from "express"
 import { z } from "zod"
-import { env } from "../../../config"
 import { sendMail } from "../../../helpers/mailer"
+import { MailCopy, mailLocale, storeLink } from "../../../helpers/mailer/messages"
 import { renderMail } from "../../../helpers/mailer/template"
 import catchAsync from "../../../shared/catchAsync"
 import { sendCsv, toCsv } from "../../../shared/csv"
 import httpStatus from "../../../shared/httpStatus"
 import { paginationQuery, toMeta, toSkipTake } from "../../../shared/pagination"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import sendResponse from "../../../shared/sendResponse"
 import { generateToken, hashToken } from "../../../shared/token"
 import ApiError from "../../errors/ApiError"
@@ -39,7 +40,6 @@ const listSchema = z.object({
 	query: z.object({ ...paginationQuery, status: z.enum(STATUSES).optional(), search: z.string().trim().max(100).optional() }),
 })
 
-const link = (path: string, token: string) => `${env.PUBLIC_BASE_URL}${path}?token=${token}`
 
 const signUp: RequestHandler = catchAsync(async (req, res) => {
 	const { email, source } = req.body as { email: string; source?: string }
@@ -47,22 +47,15 @@ const signUp: RequestHandler = catchAsync(async (req, res) => {
 
 	if (existing?.status !== "SUBSCRIBED") {
 		const token = generateToken()
+		// Newsletter mails follow the store language of the sign-up.
+		const locale = currentLocale()
 		await prisma.newsletterSubscriber.upsert({
 			where: { email },
-			create: { email, source, tokenHash: hashToken(token) },
-			update: { status: "PENDING", tokenHash: hashToken(token), ...(source ? { source } : {}) },
+			create: { email, source, locale, tokenHash: hashToken(token) },
+			update: { status: "PENDING", locale, tokenHash: hashToken(token), ...(source ? { source } : {}) },
 		})
-		await sendMail(
-			renderMail({
-				to: email,
-				subject: "Confirm your DRFT newsletter subscription",
-				preheader: "One click to start getting DRFT dispatches.",
-				heading: "Confirm your subscription",
-				paragraphs: ["Confirm that you want DRFT dispatches, new gear and riding notes by email."],
-				action: { label: "Yes, subscribe me", url: link("/newsletter/confirm", token) },
-				after: ["If you did not sign up, ignore this email and nothing will be sent."],
-			})
-		)
+		const url = storeLink(`/newsletter/confirm?token=${token}`, locale)
+		await sendMail(renderMail({ to: email, ...MailCopy.newsletterConfirm(locale, { url }) }))
 	}
 	sendResponse(res, { statusCode: httpStatus.ACCEPTED, message: "Check your inbox to confirm" })
 })
@@ -80,15 +73,9 @@ const confirm: RequestHandler = catchAsync(async (req, res) => {
 			where: { id: subscriber.id },
 			data: { status: "SUBSCRIBED", confirmedAt: new Date(), unsubscribedAt: null },
 		})
-		await sendMail(
-			renderMail({
-				to: subscriber.email,
-				subject: "You're on the DRFT list",
-				heading: "You're subscribed",
-				paragraphs: ["Thanks for confirming. You'll hear from us when there is something worth reading."],
-				footnote: `You get DRFT newsletters because you signed up. Unsubscribe any time: ${link("/newsletter/unsubscribe", (req.body as { token: string }).token)}`,
-			})
-		)
+		const locale = mailLocale(subscriber.locale)
+		const unsubscribeUrl = storeLink(`/newsletter/unsubscribe?token=${(req.body as { token: string }).token}`, locale)
+		await sendMail(renderMail({ to: subscriber.email, ...MailCopy.newsletterWelcome(locale, { unsubscribeUrl }) }))
 	}
 	sendResponse(res, { statusCode: httpStatus.OK, message: "Subscription confirmed" })
 })

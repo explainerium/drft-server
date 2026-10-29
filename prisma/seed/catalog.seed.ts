@@ -17,20 +17,23 @@ const attributes = [
 	{
 		code: "kite-size",
 		name: "Kitegröße",
+		en: "Kite size",
 		values: ["7m", "9m", "10m", "12m", "14m"].map((size, i) => ({ code: size, label: `${size}²`, sortOrder: i })),
 	},
 	{
 		code: "colorway",
 		name: "Farbe",
+		en: "Colour",
 		values: [
-			{ code: "chalk-white", label: "Kreideweiß / Gletschergrau", hexColor: "#dfe3e8", sortOrder: 0 },
-			{ code: "storm-graphite", label: "Sturmgraphit", hexColor: "#5b5b5d", sortOrder: 1 },
-			{ code: "lagoon-teal", label: "Lagunentürkis", hexColor: "#4fc3bd", sortOrder: 2 },
+			{ code: "chalk-white", label: "Kreideweiß / Gletschergrau", en: "Chalk white / Glacier grey", hexColor: "#dfe3e8", sortOrder: 0 },
+			{ code: "storm-graphite", label: "Sturmgraphit", en: "Storm graphite", hexColor: "#5b5b5d", sortOrder: 1 },
+			{ code: "lagoon-teal", label: "Lagunentürkis", en: "Lagoon teal", hexColor: "#4fc3bd", sortOrder: 2 },
 		],
 	},
 	{
 		code: "bar-size",
 		name: "Bargröße",
+		en: "Bar size",
 		values: ["45cm", "52cm"].map((label, i) => ({ code: label.toLowerCase(), label, sortOrder: i })),
 	},
 ]
@@ -140,16 +143,23 @@ const main = async () => {
 
 	const valueId = new Map<string, string>()
 	for (const a of attributes) {
+		const attrData = { name: a.name, translations: { en: { name: a.en } } }
 		const attr = await prisma.attribute.upsert({
 			where: { code: a.code },
-			create: { code: a.code, name: a.name },
-			update: { name: a.name },
+			create: { code: a.code, ...attrData },
+			update: attrData,
 		})
-		for (const v of a.values) {
+		for (const { en, ...v } of a.values as { code: string; label: string; en?: string; hexColor?: string; sortOrder: number }[]) {
+			const valueData = {
+				label: v.label,
+				sortOrder: v.sortOrder,
+				hexColor: v.hexColor ?? null,
+				translations: en ? { en: { label: en } } : Prisma.DbNull,
+			}
 			const row = await prisma.attributeValue.upsert({
 				where: { attributeId_code: { attributeId: attr.id, code: v.code } },
-				create: { attributeId: attr.id, ...v },
-				update: { label: v.label, sortOrder: v.sortOrder, hexColor: "hexColor" in v ? v.hexColor : null },
+				create: { attributeId: attr.id, code: v.code, ...valueData },
+				update: valueData,
 			})
 			valueId.set(`${a.code}:${v.code}`, row.id)
 		}

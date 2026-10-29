@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client"
 import { isReservedQueryKey } from "../../../domain/catalog/productFilters"
+import { localize } from "../../../domain/i18n/locale"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import { slugify } from "../../../shared/slugify"
 import ApiError from "../../errors/ApiError"
 import type { AttributeInput, AttributeValueInput } from "./attribute.validation"
@@ -46,8 +48,19 @@ const assertValueCodeFree = async (attributeId: string, code: string, excludeId?
 	if (clash) throw new ApiError(httpStatus.CONFLICT, `This attribute already has a value with the code "${code}"`)
 }
 
-/** Every attribute with its values. Public: the storefront builds filters and swatches from it. */
-const list = () => prisma.attribute.findMany({ include: valuesInclude, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
+/** JSON `null` must be spelled Prisma.DbNull to clear the column; undefined leaves it. */
+const jsonData = (translations: AttributeInput["translations"] | AttributeValueInput["translations"]) =>
+	translations === undefined ? {} : { translations: translations === null ? Prisma.DbNull : translations }
+
+/** Every attribute with its values, in the request language. Public: the storefront builds filters and swatches from it. */
+const list = async () => {
+	const locale = currentLocale()
+	const rows = await prisma.attribute.findMany({ include: valuesInclude, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] })
+	return rows.map(({ translations, values, ...attribute }) => ({
+		...localize(attribute, translations, locale, ["name"]),
+		values: values.map(({ translations: t, ...v }) => localize(v, t, locale, ["label"])),
+	}))
+}
 
 /** Like `list`, plus how many variants use each value, so the admin knows what can be deleted. */
 const adminList = () =>
@@ -78,13 +91,20 @@ const create = async (payload: AttributeInput & { values: AttributeValueInput[] 
 		label: v.label,
 		hexColor: v.hexColor ?? null,
 		sortOrder: v.sortOrder ?? i,
+		...jsonData(v.translations),
 	}))
 	const codes = values.map((v) => v.code)
 	const duplicate = codes.find((c, i) => codes.indexOf(c) !== i)
 	if (duplicate) throw new ApiError(httpStatus.BAD_REQUEST, `The value code "${duplicate}" is used twice`)
 
 	const attribute = await prisma.attribute.create({
-		data: { code, name: payload.name, sortOrder: payload.sortOrder ?? 0, values: { create: values } },
+		data: {
+			code,
+			name: payload.name,
+			sortOrder: payload.sortOrder ?? 0,
+			...jsonData(payload.translations),
+			values: { create: values },
+		},
 	})
 	return get(attribute.id)
 }
@@ -94,7 +114,8 @@ const update = async (id: string, payload: Partial<AttributeInput>) => {
 	const code = payload.code !== undefined ? toAttributeCode(payload.code) : undefined
 	if (code) await assertCodeFree(code, id)
 
-	await prisma.attribute.update({ where: { id }, data: { ...payload, ...(code ? { code } : {}) } })
+	const { translations, ...rest } = payload
+	await prisma.attribute.update({ where: { id }, data: { ...rest, ...jsonData(translations), ...(code ? { code } : {}) } })
 	return get(id)
 }
 
@@ -126,6 +147,7 @@ const createValue = async (attributeId: string, payload: AttributeValueInput) =>
 			label: payload.label,
 			hexColor: payload.hexColor ?? null,
 			sortOrder: payload.sortOrder ?? count,
+			...jsonData(payload.translations),
 		},
 	})
 }
@@ -141,7 +163,11 @@ const updateValue = async (valueId: string, payload: Partial<AttributeValueInput
 	const code = payload.code !== undefined ? toValueCode(payload.code) : undefined
 	if (code) await assertValueCodeFree(value.attributeId, code, valueId)
 
-	return prisma.attributeValue.update({ where: { id: valueId }, data: { ...payload, ...(code ? { code } : {}) } })
+	const { translations, ...rest } = payload
+	return prisma.attributeValue.update({
+		where: { id: valueId },
+		data: { ...rest, ...jsonData(translations), ...(code ? { code } : {}) },
+	})
 }
 
 const removeValue = async (valueId: string) => {

@@ -37,6 +37,8 @@ model Order {
   email          String
   phone          String?
   marketingOptIn Boolean @default(false)
+  // Language of the order mails ("de" | "en"): the store language at checkout.
+  locale         String  @default("de")
 
   // { firstName, lastName, company?, street1, street2?, postcode, city, region?, countryCode, phone? }
   shippingAddress Json

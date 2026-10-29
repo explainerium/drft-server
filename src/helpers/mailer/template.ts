@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale } from "../../domain/i18n/locale"
 import type { Mail } from "./index"
 
 /**
@@ -21,6 +22,19 @@ export interface MailContent {
 	after?: string[]
 	/** Small print at the bottom: why they got it, how to stop it. */
 	footnote?: string
+	/** Language of the template's own texts (fallback link, footer). German when left out. */
+	locale?: Locale
+}
+
+const CHROME: Record<Locale, { fallback: string; footer: string }> = {
+	de: {
+		fallback: "Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
+		footer: "DRFT · Kitesurf- & Foil-Ausrüstung",
+	},
+	en: {
+		fallback: "If the button doesn't work, copy this link into your browser:",
+		footer: "DRFT · Kitesurf & foil equipment",
+	},
 }
 
 const BRAND = "#2d7811"
@@ -41,7 +55,7 @@ export const escapeHtml = (value: string): string =>
 const paragraphHtml = (text: string, color = INK) =>
 	`<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:24px;color:${color};">${escapeHtml(text).replace(/\n/g, "<br>")}</p>`
 
-const buttonHtml = ({ label, url }: { label: string; url: string }) => `
+const buttonHtml = ({ label, url }: { label: string; url: string }, fallback: string) => `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
   <tr>
     <td style="border-radius:8px;background:${BRAND};">
@@ -49,7 +63,7 @@ const buttonHtml = ({ label, url }: { label: string; url: string }) => `
     </td>
   </tr>
 </table>
-<p style="margin:0 0 24px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">If the button doesn't work, copy this link into your browser:<br><a href="${escapeHtml(url)}" style="color:${BRAND};word-break:break-all;">${escapeHtml(url)}</a></p>`
+<p style="margin:0 0 24px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(fallback)}<br><a href="${escapeHtml(url)}" style="color:${BRAND};word-break:break-all;">${escapeHtml(url)}</a></p>`
 
 const detailsHtml = (details: { label: string; value: string }[]) => `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-collapse:collapse;">
@@ -64,8 +78,9 @@ const detailsHtml = (details: { label: string; value: string }[]) => `
 </table>`
 
 export const renderMail = (content: MailContent): Mail => {
+	const chrome = CHROME[content.locale ?? DEFAULT_LOCALE]
 	const html = `<!doctype html>
-<html lang="en">
+<html lang="${content.locale ?? DEFAULT_LOCALE}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(content.subject)}</title></head>
 <body style="margin:0;padding:0;background:${PAGE};">
 ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(content.preheader)}</div>` : ""}
@@ -81,13 +96,13 @@ ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opa
             <h1 style="margin:0 0 16px;font-family:${FONT};font-size:22px;line-height:30px;font-weight:600;color:${INK};">${escapeHtml(content.heading)}</h1>
             ${content.paragraphs.map((p) => paragraphHtml(p)).join("\n")}
             ${content.details?.length ? detailsHtml(content.details) : ""}
-            ${content.action ? buttonHtml(content.action) : ""}
+            ${content.action ? buttonHtml(content.action, chrome.fallback) : ""}
             ${(content.after ?? []).map((p) => paragraphHtml(p, MUTED)).join("\n")}
           </td>
         </tr>
         <tr>
           <td style="padding:20px 4px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">
-            ${content.footnote ? `${escapeHtml(content.footnote)}<br><br>` : ""}DRFT · Kitesurf &amp; foil equipment
+            ${content.footnote ? `${escapeHtml(content.footnote)}<br><br>` : ""}${escapeHtml(chrome.footer)}
           </td>
         </tr>
       </table>
@@ -106,7 +121,7 @@ ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opa
 		...(content.action ? [`${content.action.label}: ${content.action.url}`, ""] : []),
 		...(content.after ?? []).flatMap((p) => [p, ""]),
 		...(content.footnote ? [content.footnote, ""] : []),
-		"DRFT · Kitesurf & foil equipment",
+		chrome.footer,
 	].join("\n")
 
 	return { to: content.to, subject: content.subject, text, html }

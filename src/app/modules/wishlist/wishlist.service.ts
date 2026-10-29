@@ -3,7 +3,7 @@ import { maxQuantity } from "../../../domain/cart/cartRules"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
 import ApiError from "../../errors/ApiError"
-import { cardSelect, toCard } from "../product/product.service"
+import { cardSelect, optionOf, toCard } from "../product/product.service"
 
 const itemSelect = {
 	id: true,
@@ -19,7 +19,7 @@ const itemSelect = {
 			allowBackorder: true,
 			attributeValues: {
 				select: {
-					attributeValue: { select: { label: true, attribute: { select: { name: true, sortOrder: true } } } },
+					attributeValue: { select: { label: true, translations: true, attribute: { select: { name: true, sortOrder: true, translations: true } } } },
 				},
 			},
 		},
@@ -45,7 +45,7 @@ const toItem = (row: ItemRow, onlyVariant?: VariantRow) => {
 						price: variant.price.toFixed(2),
 						available: maxQuantity(variant) > 0,
 						options: variant.attributeValues
-							.map(({ attributeValue: v }) => ({ name: v.attribute.name, value: v.label, sortOrder: v.attribute.sortOrder }))
+							.map(({ attributeValue: v }) => optionOf(v))
 							.sort((a, b) => a.sortOrder - b.sortOrder)
 							.map(({ name, value }) => ({ name, value })),
 					}

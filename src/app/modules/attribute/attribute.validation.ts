@@ -6,6 +6,13 @@ const valueIdParams = z.object({ valueId: z.uuid() })
 // Codes are slugified by the service; left out, they are made from the name / label.
 const code = z.string().trim().min(1).max(60)
 
+/** Another language; an empty field falls back to the German one. */
+const translations = <K extends string>(field: K, max: number) =>
+	z
+		.object({ en: z.object({ [field]: z.string().trim().max(max) } as Record<K, z.ZodString>).partial() })
+		.partial()
+		.nullish()
+
 const value = z.object({
 	code: code.optional(),
 	label: z.string().trim().min(1).max(80),
@@ -15,12 +22,14 @@ const value = z.object({
 		.regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #1a1c1b")
 		.nullish(),
 	sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+	translations: translations("label", 80),
 })
 
 const attribute = z.object({
 	code: code.optional(),
 	name: z.string().trim().min(1).max(80),
 	sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+	translations: translations("name", 80),
 })
 
 const nonEmpty = (body: object) => Object.keys(body).length > 0

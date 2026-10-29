@@ -5,6 +5,7 @@ import { toCents } from "../../../domain/catalog/variantRules"
 import { orderTotals, RESERVATION_MINUTES, shippingCents } from "../../../domain/checkout/checkoutRules"
 import httpStatus from "../../../shared/httpStatus"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import { generateToken, hashToken } from "../../../shared/token"
 import ApiError from "../../errors/ApiError"
 import { AccountService } from "../account/account.service"
@@ -179,6 +180,7 @@ const placeOrder = async (ctx: CartContext, input: PlaceOrderInput) => {
 				userId: ctx.userId ?? null,
 				cartId,
 				accessTokenHash: hashToken(token),
+				locale: currentLocale(),
 				email: contact.email,
 				phone: shippingAddress.phone,
 				marketingOptIn: contact.marketingOptIn,

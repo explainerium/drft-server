@@ -32,6 +32,8 @@ model NewsletterSubscriber {
   status SubscriberStatus @default(PENDING)
   // Where they signed up: "footer", "home".
   source String?
+  // Language of the newsletter mails ("de" | "en").
+  locale String  @default("de")
 
   // SHA-256 of the token in the confirm and unsubscribe links.
   tokenHash String @unique

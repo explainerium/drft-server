@@ -46,6 +46,20 @@ const categoryRef = ({ translations, ...category }: { id: string; name: string; 
 
 const CARD_TEXT = ["name", "badge", "typeLabel", "shortDescription"] as const
 
+/** One "Farbe: Sturmgraphit" option of a cart or wishlist line, in the request language. */
+export const optionOf = (value: {
+	label: string
+	translations: Prisma.JsonValue
+	attribute: { name: string; sortOrder: number; translations: Prisma.JsonValue }
+}) => {
+	const locale = currentLocale()
+	return {
+		name: localize({ name: value.attribute.name }, value.attribute.translations, locale, ["name"]).name,
+		value: localize({ label: value.label }, value.translations, locale, ["label"]).label,
+		sortOrder: value.attribute.sortOrder,
+	}
+}
+
 export const cardSelect = {
 	id: true,
 	name: true,
@@ -69,7 +83,7 @@ export const cardSelect = {
 			// Colour swatches on the card.
 			attributeValues: {
 				where: { attributeValue: { hexColor: { not: null } } },
-				select: { attributeValue: { select: { id: true, label: true, hexColor: true, sortOrder: true } } },
+				select: { attributeValue: { select: { id: true, label: true, hexColor: true, sortOrder: true, translations: true } } },
 			},
 		},
 	},
@@ -92,8 +106,8 @@ export const toCard = (row: CardRow) => {
 	const fallback = row.images[0]
 	const swatches = new Map<string, { id: string; label: string; hexColor: string; sortOrder: number }>()
 	for (const v of row.variants) {
-		for (const { attributeValue: a } of v.attributeValues) {
-			if (a.hexColor) swatches.set(a.id, { ...a, hexColor: a.hexColor })
+		for (const { attributeValue: { translations, ...a } } of v.attributeValues) {
+			if (a.hexColor) swatches.set(a.id, { ...localize(a, translations, currentLocale(), ["label"]), hexColor: a.hexColor })
 		}
 	}
 
@@ -146,7 +160,8 @@ const variantSelect = {
 					label: true,
 					hexColor: true,
 					sortOrder: true,
-					attribute: { select: { id: true, code: true, name: true, sortOrder: true } },
+					translations: true,
+					attribute: { select: { id: true, code: true, name: true, sortOrder: true, translations: true } },
 				},
 			},
 		},
@@ -155,9 +170,15 @@ const variantSelect = {
 
 type VariantRow = Prisma.ProductVariantGetPayload<{ select: typeof variantSelect }>
 
-const attributeValuesOf = (v: VariantRow) =>
-	v.attributeValues
-		.map(({ attributeValue: av }) => ({
+const attributeValuesOf = (v: VariantRow) => {
+	const locale = currentLocale()
+	return v.attributeValues
+		.map(({ attributeValue: { translations, attribute, ...av } }) => ({
+			...av,
+			...localize({ label: av.label }, translations, locale, ["label"]),
+			attribute: { ...attribute, ...localize({ name: attribute.name }, attribute.translations, locale, ["name"]) },
+		}))
+		.map((av) => ({
 			attributeId: av.attribute.id,
 			attributeCode: av.attribute.code,
 			attributeName: av.attribute.name,
@@ -169,6 +190,7 @@ const attributeValuesOf = (v: VariantRow) =>
 			sortOrder: av.sortOrder,
 		}))
 		.sort((a, b) => a.attributeSortOrder - b.attributeSortOrder || a.attributeName.localeCompare(b.attributeName))
+}
 
 /**
  * The attributes the active variants vary by, each with only the values in use.

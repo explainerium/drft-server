@@ -145,6 +145,8 @@ model Attribute {
   code      String @unique
   name      String
   sortOrder Int    @default(0)
+  // Other languages: { en: { name } }. `name` is German, the main language.
+  translations Json?
 
   values AttributeValue[]
 
@@ -161,6 +163,8 @@ model AttributeValue {
   // Swatch colour for colour attributes, e.g. "#1a1c1b".
   hexColor  String?
   sortOrder Int     @default(0)
+  // Other languages: { en: { label } }. `label` is German, the main language.
+  translations Json?
 
   variants VariantAttributeValue[]
 

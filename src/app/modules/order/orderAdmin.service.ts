@@ -2,8 +2,8 @@ import type { OrderStatus, Prisma } from "@prisma/client"
 import { orderLabel } from "../../../domain/checkout/checkoutRules"
 import { canStaffMove, staffTransitions } from "../../../domain/order/orderRules"
 import { toCsv } from "../../../shared/csv"
-import { env } from "../../../config"
 import { sendMail } from "../../../helpers/mailer"
+import { MailCopy, mailLocale, storeLink } from "../../../helpers/mailer/messages"
 import { renderMail } from "../../../helpers/mailer/template"
 import httpStatus from "../../../shared/httpStatus"
 import { toMeta, toSkipTake } from "../../../shared/pagination"
@@ -273,41 +273,29 @@ const notify = async (orderId: string, status: OrderStatus) => {
 			trackingCarrier: true,
 			trackingNumber: true,
 			trackingUrl: true,
+			locale: true,
 		},
 	})
 	const label = orderLabel(order.number)
 	const { firstName } = order.shippingAddress as AddressSnapshot
-	const greeting = `Hi${firstName ? ` ${firstName}` : ""},`
+	const locale = mailLocale(order.locale)
 	// Guests see an order only with the cookie from placing it, so only customers get a link.
-	const orderLink = order.userId ? `${env.PUBLIC_BASE_URL}/account/orders/${orderId}` : null
+	const orderUrl = order.userId ? storeLink(`/account/orders/${orderId}`, locale) : null
 
 	await sendMail(
-		status === "SHIPPED"
-			? renderMail({
-					to: order.email,
-					subject: `Your DRFT order ${label} is on its way`,
-					preheader: `Order ${label} has left our warehouse.`,
-					heading: "Your order is on its way",
-					paragraphs: [greeting, `Order ${label} has shipped.`],
-					details: [
-						{ label: "Order", value: label },
-						...(order.trackingCarrier ? [{ label: "Carrier", value: order.trackingCarrier }] : []),
-						...(order.trackingNumber ? [{ label: "Tracking number", value: order.trackingNumber }] : []),
-					],
-					action: order.trackingUrl
-						? { label: "Track your parcel", url: order.trackingUrl }
-						: orderLink
-							? { label: "View your order", url: orderLink }
-							: undefined,
-					after: order.trackingUrl && orderLink ? [`Order details: ${orderLink}`] : [],
-				})
-			: renderMail({
-					to: order.email,
-					subject: `Your DRFT order ${label} was cancelled`,
-					heading: "Your order was cancelled",
-					paragraphs: [greeting, `Order ${label} was cancelled before payment. Nothing was charged.`],
-					details: [{ label: "Order", value: label }],
-				})
+		renderMail({
+			to: order.email,
+			...(status === "SHIPPED"
+				? MailCopy.orderShipped(locale, {
+						label,
+						firstName,
+						carrier: order.trackingCarrier,
+						trackingNumber: order.trackingNumber,
+						trackingUrl: order.trackingUrl,
+						orderUrl,
+					})
+				: MailCopy.orderCancelled(locale, { label, firstName })),
+		})
 	)
 }
 

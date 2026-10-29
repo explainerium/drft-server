@@ -37,3 +37,16 @@ describe("escapeHtml", () => {
 		expect(escapeHtml(`<a href="x">'&'</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;")
 	})
 })
+
+describe("renderMail language", () => {
+	it("writes the fixed texts in German by default and in English on request", () => {
+		const base = { to: "a@b.test", subject: "S", heading: "H", paragraphs: [], action: { label: "Go", url: "https://x.test" } }
+		const de = renderMail(base)
+		expect(de.html).toContain('<html lang="de">')
+		expect(de.html).toContain("Falls der Button nicht funktioniert")
+		expect(de.text).toContain("DRFT · Kitesurf- & Foil-Ausrüstung")
+		const en = renderMail({ ...base, locale: "en" })
+		expect(en.html).toContain("If the button doesn&#39;t work")
+		expect(en.text).toContain("DRFT · Kitesurf & foil equipment")
+	})
+})

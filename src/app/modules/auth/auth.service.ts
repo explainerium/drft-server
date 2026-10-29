@@ -3,11 +3,13 @@ import type { User } from "@prisma/client"
 import { env } from "../../../config"
 import { decideRefresh } from "../../../domain/auth/refreshDecision"
 import { sendMail } from "../../../helpers/mailer"
+import { MailCopy, mailLocale, storeLink } from "../../../helpers/mailer/messages"
 import { renderMail } from "../../../helpers/mailer/template"
 import httpStatus from "../../../shared/httpStatus"
 import { signAccessToken } from "../../../shared/jwtHelper"
 import { logger } from "../../../shared/logger"
 import { prisma } from "../../../shared/prisma"
+import { currentLocale } from "../../../shared/requestContext"
 import { durationToMs, generateToken, hashToken } from "../../../shared/token"
 import ApiError from "../../errors/ApiError"
 import { type AuthResult, type DeviceInfo, type PublicUser, toPublicUser } from "./auth.interface"
@@ -51,19 +53,9 @@ const sendVerificationMail = async (user: User): Promise<void> => {
 		},
 	})
 
-	const link = `${env.PUBLIC_BASE_URL}/verify-email?token=${token}`
-	await sendMail(
-		renderMail({
-			to: user.email,
-			subject: "Confirm your DRFT account",
-			preheader: "One click to confirm your email address.",
-			heading: `Welcome to DRFT${user.firstName ? `, ${user.firstName}` : ""}`,
-			paragraphs: ["Confirm your email address to finish setting up your account."],
-			action: { label: "Confirm email address", url: link },
-			after: ["This link is valid for 48 hours."],
-			footnote: "You get this email because an account was created with this address on the DRFT store.",
-		})
-	)
+	const locale = mailLocale(user.locale)
+	const url = storeLink(`/verify-email?token=${token}`, locale)
+	await sendMail(renderMail({ to: user.email, ...MailCopy.verifyEmail(locale, { firstName: user.firstName, url }) }))
 }
 
 const register = async (
@@ -83,6 +75,8 @@ const register = async (
 			passwordHash,
 			firstName: payload.firstName,
 			lastName: payload.lastName,
+			// Their emails follow the store language they signed up in.
+			locale: currentLocale(),
 		},
 	})
 
@@ -175,18 +169,9 @@ const forgotPassword = async (email: string): Promise<void> => {
 		},
 	})
 
-	const link = `${env.PUBLIC_BASE_URL}/reset-password?token=${token}`
-	await sendMail(
-		renderMail({
-			to: user.email,
-			subject: "Reset your DRFT password",
-			preheader: "Choose a new password for your account.",
-			heading: "Reset your password",
-			paragraphs: ["Someone asked to reset the password for this account."],
-			action: { label: "Choose a new password", url: link },
-			after: ["This link is valid for 1 hour. If this wasn't you, ignore this email: your password stays the same."],
-		})
-	)
+	const locale = mailLocale(user.locale)
+	const url = storeLink(`/reset-password?token=${token}`, locale)
+	await sendMail(renderMail({ to: user.email, ...MailCopy.resetPassword(locale, { url }) }))
 }
 
 const resetPassword = async (token: string, password: string): Promise<void> => {
