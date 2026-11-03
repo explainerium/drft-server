@@ -43,6 +43,8 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   assetsUploaded          Asset[]                  @relation("AssetUploader")
+  siteTexts               SiteText[]               @relation("SiteTextEditor")
+  siteTextRevisions       SiteTextRevision[]       @relation("SiteTextRevisionAuthor")
 
   @@index([role, status])
   @@index([deletedAt])

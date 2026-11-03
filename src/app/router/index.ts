@@ -17,6 +17,7 @@ import { PostRoutes } from "../modules/post/post.routes"
 import { ProductRoutes } from "../modules/product/product.routes"
 import { SettingRoutes } from "../modules/setting/setting.routes"
 import { ShippingRoutes } from "../modules/shipping/shipping.routes"
+import { SiteTextRoutes } from "../modules/siteText/siteText.routes"
 import { TaxRoutes } from "../modules/tax/tax.routes"
 import { UserRoutes } from "../modules/user/user.routes"
 import { WishlistRoutes } from "../modules/wishlist/wishlist.routes"
@@ -38,6 +39,7 @@ const moduleRoutes: { path: string; route: Router }[] = [
 	{ path: "/pages", route: PageRoutes },
 	{ path: "/posts", route: PostRoutes },
 	{ path: "/faq", route: FaqRoutes },
+	{ path: "/site-texts", route: SiteTextRoutes },
 	{ path: "/newsletter", route: NewsletterRoutes },
 	{ path: "/contact", route: ContactRoutes },
 	{ path: "/media", route: MediaRoutes },

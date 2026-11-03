@@ -78,3 +78,36 @@ model FaqItem {
   @@index([isPublished, sortOrder])
   @@map("faq_items")
 }
+
+// Storefront texts changed in the admin. The frontend's message files hold the
+// defaults; a row replaces one string in one language. `key` is the message
+// path ("home.hero.title"); the storefront ignores keys it does not know.
+model SiteText {
+  key    String
+  locale String
+  value  String
+
+  updatedById String?
+  updatedBy   User?    @relation("SiteTextEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+
+  @@id([key, locale])
+  @@index([locale])
+  @@map("site_texts")
+}
+
+// Every change to a site text, for the admin's history. `value` null: the text
+// went back to the default.
+model SiteTextRevision {
+  id     String  @id @default(uuid())
+  key    String
+  locale String
+  value  String?
+
+  changedById String?
+  changedBy   User?    @relation("SiteTextRevisionAuthor", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@map("site_text_revisions")
+}
